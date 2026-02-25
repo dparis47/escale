@@ -73,18 +73,18 @@ France Travail:
 
 ENUM CPAM/ARS
 CPAM/ARS (actuellement l'escale utilise le tableau d'accueil jour après jour)
-    - ouverture et maintien des droits
-        - dossier CSS
-        - carte vitale
-        - affiliation:
+    - Ouverture et maintien des droits
+        - Dossier CSS
+        - Carte Vitale
+        - Affiliation:
             - droits santé
             - mutuelle
-        - invalidité
-        - rattachement enfants
+        - Invalidité
+        - Rattachement enfants
         - AME
-    - accès au numérique
-        - création compte AMELI/MSA
-        - consultation et démarches sur les espaces personnels AMELI/MSA
+    - Accès au numérique
+        - Création compte AMELI/MSA
+        - Consultation et démarches sur les espaces personnels AMELI/MSA
     - démarches administratives
         - échange avec CPAM/MSA
         - impression et/ou envoi de documents
@@ -170,14 +170,14 @@ ASID (suivi)
     Données
         - homme/femme
         - age
-        - orientation N-1
-        - orientation N
-        - renouvellements N
-        - suivi n-2 en cours
-        - suivis réalisés (la personne adhère au suivi ou fort absent)
+        - orientation N-1 (l'oriantation pour un suivi ASID a été fait l'année N-1)
+        - orientation N (l'oriantation pour un suivi ASID a été fait l'année N. L'année en court)
+        - renouvellements N (le suivi ASID a été renouvellé durant l'année courante)
+        - suivi n-2 en cours (le suivi ASID se poursuit depuis l'année N-2)
+        - suivis réalisés (la personne adhère au suivi ou pas. Les abandons peuvent avoir plusieurs motifs comme beaucoup d'absence aux rendez-vous)
         - commune de résidence
-        - prescripteur
-        - référent
+        - prescripteur (nom prénom de la personne qui a prescrit le suivi ASID)
+        - référent (nom prénom de la personne chargé de l'accompagnement social)
         - date d'entrée
         - date de renouvelleent
         - date de sortie
