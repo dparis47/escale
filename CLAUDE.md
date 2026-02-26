@@ -92,11 +92,17 @@ Application web de gestion pour l'association **L'Escale**, un lieu d'accueil li
 - [x] Générer et appliquer les migrations
 - [x] Créer les données de test (seed)
 
-### Étape 3 — Authentification
-- [ ] Installer NextAuth.js
-- [ ] Configurer les 3 rôles
-- [ ] Page `/login`
-- [ ] Protection des routes par rôle
+### Étape 3 — Authentification ✅
+- [x] Installer NextAuth.js v5 + Zod + bcryptjs
+- [x] Configurer les 3 rôles (ACCUEIL, TRAVAILLEUR_SOCIAL, DIRECTION)
+- [x] Page `/login` (formulaire shadcn/ui, messages d'erreur en français)
+- [x] Protection des routes par middleware (src/middleware.ts)
+- [x] Tests validés manuellement :
+  - Accès à `/` sans session → redirigé vers `/login`
+  - Mauvais mot de passe → message d'erreur affiché
+  - Connexion `accueil@escale.fr` / `password123` → redirigé vers `/`
+  - Accès à `/login` connecté → redirigé vers `/`
+  - Rafraîchissement → session maintenue
 
 ### Étape 4 — Tableau journalier
 - [ ] Page principale `/`
