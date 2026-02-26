@@ -46,10 +46,16 @@ Application web de gestion pour l'association **L'Escale**, un lieu d'accueil li
 ## Modèle de données — décisions d'architecture
 
 ### Accompagnements formels (suivi structuré)
-- **ASID** — lié au Conseil Départemental
+- **FSE** — accompagnement formel, plusieurs possibles par personne
+  - Ressources saisies = situation à l'entrée dans le FSE (pas les ressources actuelles de la fiche)
+  - Contient : dates entrée/sortie, RSA pendant FSE, ressources à l'entrée,
+    situation avant FSE (emploi), démarches effectuées (booléens), situation de sortie,
+    formation si sortie=formation (intitulé, organisme, ville, durée), observations
+  - Bilan = liste nominative + totaux par colonne
+  - Lien optionnel vers AccompagnementASID
+- **ASID** — toujours lié à un FSE (ASID ⊂ FSE). Créer un ASID = créer automatiquement le FSE correspondant
   - Prescripteur = toujours un CMS (nom prénom + ville du CMS)
   - Contient des `EntretienASID` (date + sujets) ET des `DemarcheASID` (jalons/résultats)
-- **FSE** — mis de côté (informations manquantes)
 
 ### Partenaires statistiques (bilans sur données de visites)
 - **France Travail** — données des visites + contrats de travail trouvés
@@ -63,6 +69,7 @@ Application web de gestion pour l'association **L'Escale**, un lieu d'accueil li
 - **ContratDeTravail** — historique des contrats liés à une personne (type CDI/CDD/CDDI/Intérim, dates, employeur, ville, poste). Plusieurs contrats possibles par personne
 - **ActionCollective** — ateliers collectifs. Participants toujours liés à une fiche personne (pas d'anonyme)
 - **AccompagnementASID** — suivi ASID avec EntretienASID (date + sujets) et DemarcheASID (jalons)
+- **AccompagnementFSE** — suivi FSE avec ressources à l'entrée, démarches (booléens), situation avant/après
 
 ### Distinctions importantes
 - `orientePar` (fiche personne) ≠ `prescripteur` (ASID uniquement)
@@ -79,11 +86,11 @@ Application web de gestion pour l'association **L'Escale**, un lieu d'accueil li
 - [x] Installer et configurer Tailwind CSS
 - [x] Installer et configurer shadcn/ui
 
-### Étape 2 — Base de données (local SQLite)
-- [ ] Installer Prisma
-- [ ] Écrire le schéma complet (Person, Visit, ASID, Atelier…)
-- [ ] Générer et appliquer les migrations
-- [ ] Créer les données de test (seed)
+### Étape 2 — Base de données (PostgreSQL local) ✅
+- [x] Installer Prisma
+- [x] Écrire le schéma complet (Person, Visit, FSE, ASID, Atelier…)
+- [x] Générer et appliquer les migrations
+- [x] Créer les données de test (seed)
 
 ### Étape 3 — Authentification
 - [ ] Installer NextAuth.js

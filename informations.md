@@ -155,12 +155,70 @@ Actions collectives
             - le nombre total de participants par atelier
         - 
 
- FSE cf email
-    - homme/femme
-    - nouvelle entrée dans le dispositif FSE
-    - ASID
-    - type de ressources:
-        - 
+ FSE
+    Suivi
+        - Nom
+        - Prénom
+        - Démarches
+            - Ouverture et/ou maintien de droits CAF/MSA
+            - Santé
+            - CSS
+            - Bilan de santé
+            - Mobilité
+            - Recherche d'emploi
+            - CV
+            - Logement
+            - Ateliers
+            - Accompagnement au numérique
+            - PASS Numérique
+            - Parentalité
+    
+    Données
+        - Nom
+        - Prénom
+        - Homme/Femme
+        - ASID
+            - Date d'entrée
+            - Date de sortie
+        - RSA
+            - Date d'entrée
+            - Date de sortie
+        - Ressources
+            - RSA
+            - ASS
+            - ARE
+            - AAH 
+            - Salaire du conjoint
+            - Invalidité
+            - Sans ressources   
+        - Accompagnement FSE
+            - Date d'entrée
+            - Date de sortie
+        - Occupe un emploi avant le début de l'accompagnement FSE
+            - CDD < 6 mois
+            - CDD > 6 mois
+            - CDI
+            - IAE
+            - Indépendant
+        - Sortie de l'accompagnement FSE
+            - CDD < 6 mois
+            - CDD > 6 mois
+            - CDI
+            - IAE
+            - Indépendant
+            - Maintien en emploi
+            - Recherche d'emploi
+            - Inactif
+            - Formation
+                - Intitulé de la formation
+                - Organisme de formation
+                - Ville
+                - Durée de la formation
+            - Création d'entreprise
+            - Information contrat hors délai
+        - Observations
+            
+          
 
 
     il manque le nombre de personnes en: 
