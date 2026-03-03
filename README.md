@@ -10,26 +10,10 @@ Application web de gestion pour l'association **L'Escale**, un lieu d'accueil li
 - **Tailwind CSS** + shadcn/ui
 - Déploiement sur **Vercel**
 
-## Démarrage
+## Documentation
 
-```bash
-npm install
-npm run dev
-```
-
-Ouvrir [http://localhost:3000](http://localhost:3000)
-
-## Base de données
-
-```bash
-# Appliquer les migrations
-npx prisma migrate dev
-
-# Charger les données de test
-npm run db:seed
-```
-
-Comptes de test créés par le seed :
-- `accueil@escale.fr` / `password123`
-- `ts@escale.fr` / `password123`
-- `direction@escale.fr` / `password123`
+| Document | Description |
+|---|---|
+| [Démarrage](docs/demarrage.md) | Installation, base de données, comptes de test |
+| [Spécifications](docs/specifications.md) | Spécifications fonctionnelles complètes |
+| [Base de données](docs/base-de-donnees.md) | Tables, champs et descriptions |

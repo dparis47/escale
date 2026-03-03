@@ -29,6 +29,7 @@ enum SituationFamiliale {
   SEPARE
   CONCUBINAGE
   VEUF
+  PARENT_ISOLE
 }
 
 enum OrientePar {
@@ -53,31 +54,18 @@ enum Ressource {
   SANS_RESSOURCE
 }
 
-enum MotifVisite {
-  MSA_CAF
-  SANTE
-  PASS
-  LOGEMENT
-  MOBILITE
-  CV_LM
-  EMPLOI
-  RECHERCHES_ADMIN
-  INSCRIPTION_REINSCRIPTION_FT
-  CREATION_COMPTE_FT
-  ACCOMPAGNEMENT_NUMERIQUE
-  INTERNET
-  INFOS_CONSEILS
-  LIEN_SOCIAL
-  ATELIERS
-  COURS_INFORMATIQUE
-  ASID
-}
-
 enum TypeContrat {
   CDI
   CDD
   CDDI
   INTERIM
+}
+
+enum NiveauFormation {
+  PAS_SCOLARISE
+  PRIMAIRE_3EME
+  CAP_BAC
+  DEUG_PLUS
 }
 
 enum ThemeAtelier {
@@ -99,7 +87,7 @@ enum ThemeAtelier {
   AUTRE
 }
 
-enum SujetEntretienASID {
+enum SujetEntretien {
   SANTE
   MOBILITE
   EMPLOI
@@ -120,9 +108,11 @@ model User {
   password String
   role     Role
 
-  visitesSaisies      Visit[]
-  accompagnementsASID AccompagnementASID[] @relation("ReferentASID")
-  accompagnementsFSE  AccompagnementFSE[]  @relation("ReferentFSE")
+  visitesSaisies   Visit[] @relation("VisitSaisiePar")
+  visitesModifiees Visit[] @relation("VisitModifiePar")
+
+  accompagnements Accompagnement[] @relation("ReferentAccompagnement")
+  suiviASID       SuiviASID[]      @relation("ReferentSuiviASID")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -134,61 +124,65 @@ model User {
 // ============================================================
 
 model Person {
-  id                     Int                @id @default(autoincrement())
-  nom                    String
-  prenom                 String
-  genre                  Genre
-  dateNaissance          DateTime?
-  nationalite            String?
-  adresse                String?
-  telephone              String?
-  mobile                 String?
-  email                  String?
-  dateActualisation      DateTime?
+  id                Int       @id @default(autoincrement())
+  nom               String
+  prenom            String
+  genre             Genre
+  dateNaissance     DateTime?
+  nationalite       String?
+  adresse           String?
+  telephone         String?
+  mobile            String?
+  email             String?
+  dateActualisation DateTime?
 
-  // Statuts
-  css                    Boolean            @default(false)
-  rqth                   Boolean            @default(false)
-  invalidite             Boolean            @default(false)
-  categorieInvalidite    String?
+  // true = fiche complète saisie par le personnel
+  // false = fiche auto-créée (nom/prénom libre ou personne ANONYME)
+  estInscrit Boolean @default(false)
+
+  // Santé
+  css                 Boolean @default(false)
+  rqth                Boolean @default(false)
+  invalidite          Boolean @default(false)
+  categorieInvalidite String?
+  numeroSecu          String?
 
   // France Travail
-  numeroFT               String?
-  dateInscriptionFT      DateTime?
-  codepersonnelFT        String?
-  accoGlo                Boolean            @default(false)
+  numeroFT          String?
+  dateInscriptionFT DateTime?
+  codepersonnelFT   String?
+  accoGlo           Boolean   @default(false)
 
   // CAF
-  numeroCAF              String?
+  numeroCAF String?
 
   // Situation familiale
-  situationFamiliale     SituationFamiliale?
-  nombreEnfantsCharge    Int?
-  agesEnfants            Int[]
+  situationFamiliale  SituationFamiliale?
+  nombreEnfantsCharge Int?
+  agesEnfants         Int[]
 
   // Mobilité
-  permisConduire         Boolean            @default(false)
-  vehiculePersonnel      Boolean            @default(false)
+  permisConduire         Boolean @default(false)
+  vehiculePersonnel      Boolean @default(false)
   autresMoyensLocomotion String?
 
   // Hébergement
-  hebergement            String?
+  hebergement String?
 
   // Ressources et orientation
-  ressources             Ressource[]
-  orientePar             OrientePar?
+  ressources Ressource[]
+  orientePar OrientePar?
+  enASID     Boolean     @default(false)
 
   // Relations
   visites                Visit[]
-  contratsDeTravail      ContratDeTravail[]
-  accompagnementsFSE     AccompagnementFSE[]
-  accompagnementsASID    AccompagnementASID[]
+  contratsTravail        ContratTravail[]
+  accompagnements        Accompagnement[]
   participationsAteliers ParticipationAtelier[]
-  servicesSante          ServiceSante[]
 
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-  deletedAt              DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 }
 
 // ============================================================
@@ -196,96 +190,165 @@ model Person {
 // ============================================================
 
 model Visit {
-  id      Int      @id @default(autoincrement())
-  date    DateTime @db.Date
-  genre   Genre
+  id   Int      @id @default(autoincrement())
+  date DateTime @db.Date
 
-  // Anonyme si personId est null
-  personId Int?
-  person   Person? @relation(fields: [personId], references: [id])
+  // Person toujours présente (auto-créée si visite anonyme, estInscrit=false)
+  personId Int
+  person   Person @relation(fields: [personId], references: [id])
 
-  motifs      MotifVisite[]
-  orienteParFT Boolean     @default(false)
+  orienteParFT Boolean  @default(false)
+  partenaires  String[]
   commentaire  String?
 
-  saisieParId Int?
-  saisiePar   User? @relation(fields: [saisieParId], references: [id])
+  // FSE — marquage pour comptage annuel (une seule fois par personne par an)
+  fse Boolean @default(false)
 
-  serviceSante ServiceSante?
+  saisieParId Int?
+  saisiePar   User? @relation("VisitSaisiePar", fields: [saisieParId], references: [id])
+
+  modifieParId Int?
+  modifiePar   User? @relation("VisitModifiePar", fields: [modifieParId], references: [id])
+
+  // Démarches créées en même temps que la visite (Demarches.visitId pointe ici)
+  demarches Demarches?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  @@unique([personId, date])
+  // Unicité enforced via index partiel PostgreSQL (WHERE "deletedAt" IS NULL)
+  // pour permettre la recréation après soft delete — voir migration correspondante
 }
 
 // ============================================================
-// SUIVI SANTÉ (CPAM / ARS)
+// DÉMARCHES (unifiées — Visit, Accompagnement)
 // ============================================================
 
-model ServiceSante {
-  id       Int      @id @default(autoincrement())
-  date     DateTime @db.Date
+model Demarches {
+  id Int @id @default(autoincrement())
 
-  // Anonyme si personId est null
-  personId Int?
-  person   Person? @relation(fields: [personId], references: [id])
-  visitId  Int?    @unique
-  visit    Visit?  @relation(fields: [visitId], references: [id])
+  // Un seul de ces liens est non-null selon le contexte
+  visitId Int?   @unique
+  visit   Visit? @relation(fields: [visitId], references: [id])
 
-  // Ouverture et maintien des droits
-  dossierCSS             Boolean @default(false)
-  carteVitale            Boolean @default(false)
-  affiliationDroitsSante Boolean @default(false)
-  affiliationMutuelle    Boolean @default(false)
-  invalidite             Boolean @default(false)
-  rattachementEnfants    Boolean @default(false)
-  ame                    Boolean @default(false)
+  accompagnementId Int?            @unique
+  accompagnement   Accompagnement? @relation(fields: [accompagnementId], references: [id])
 
-  // Accès au numérique
-  creationCompteAmeli Boolean @default(false)
-  consultationAmeli   Boolean @default(false)
+  // ACCES AUX DROITS
+  droitsCafMsa Boolean @default(false)
 
-  // Démarches administratives
-  echangeCpam         Boolean @default(false)
-  impressionDocuments Boolean @default(false)
-  informationDroits   Boolean @default(false)
+  // EMPLOI
+  emploiRechercheEmploi      Boolean @default(false)
+  emploiConsultationOffres   Boolean @default(false)
+  emploiCandidatures         Boolean @default(false)
+  emploiOffresProposees      Boolean @default(false)
+  emploiOffresNombre         Int?
+  emploiProjetProfessionnel  Boolean @default(false)
+  emploiProjetFormation      Boolean @default(false)
+  emploiCvLm                 Boolean @default(false)
+  emploiEntretiens           Boolean @default(false)
+  emploiPreparationEntretien Boolean @default(false)
+  emploiSimulationEntretien  Boolean @default(false)
+  emploiEchangeFT            Boolean @default(false)
+  emploiInscriptionFT        Boolean @default(false)
+  emploiInscriptionJob47     Boolean @default(false)
+  emploiInscriptionInterim   Boolean @default(false)
+  emploiEspaceFT             Boolean @default(false)
+  emploiPmsmp                Boolean @default(false)
 
-  // Accès aux soins
-  demarchesAccesSoins Boolean @default(false)
-  dossierMDPH         Boolean @default(false)
-  suiviParcoursSoin   Boolean @default(false)
-  bilanSante          Boolean @default(false)
+  // SANTE
+  santeRendezVousPASS        Boolean @default(false)
+  santeCss                   Boolean @default(false)
+  santeCssDossier            Boolean @default(false)
+  santeCssOuverture          Boolean @default(false)
+  santeCarteVitale           Boolean @default(false)
+  santeAffiliation           Boolean @default(false)
+  santeAffiliationSecu       Boolean @default(false)
+  santeAffiliationMutuelle   Boolean @default(false)
+  santeInvalidite            Boolean @default(false)
+  santeRattachementEnfants   Boolean @default(false)
+  santeAme                   Boolean @default(false)
+  santeNumeriqueAmeli        Boolean @default(false)
+  santeNumeriqueConsultAmeli Boolean @default(false)
+  santeDemarchesEchangeCPAM  Boolean @default(false)
+  santeDemarchesImpression   Boolean @default(false)
+  santeDemarchesInfo         Boolean @default(false)
+  santeAccesSoins            Boolean @default(false)
+  santeMdph                  Boolean @default(false)
+  santeSuiviSante            Boolean @default(false)
+  santeBilanSante            Boolean @default(false)
+  santeOrientCpam            Boolean @default(false)
+  santeOrientCramif          Boolean @default(false)
+  santeOrientSanteTravail    Boolean @default(false)
+  santeOrientMdph            Boolean @default(false)
+  santeOrientPass            Boolean @default(false)
+  santeOrientAddictologie    Boolean @default(false)
+  santeOrientMaisonFemmes    Boolean @default(false)
+  santeOrientGemCmpa         Boolean @default(false)
+  santeOrientMedecins        Boolean @default(false)
+  santeOrientDepistage       Boolean @default(false)
+  santeMentale               Boolean @default(false)
+  santeSoutienPsy            Boolean @default(false)
 
-  // Orientations partenaires
-  orientationCpam         Boolean @default(false)
-  orientationCramif       Boolean @default(false)
-  orientationSanteTravail Boolean @default(false)
-  orientationMDPH         Boolean @default(false)
-  orientationPASS         Boolean @default(false)
-  orientationAddictologie Boolean @default(false)
-  orientationMaisonFemmes Boolean @default(false)
-  orientationGemCmpa      Boolean @default(false)
-  orientationMedecins     Boolean @default(false)
-  orientationDepistage    Boolean @default(false)
+  // MOBILITE
+  mobilitCarteSolidaire    Boolean @default(false)
+  mobilitAutoEcole         Boolean @default(false)
+  mobilitAutoEcoleCode     Boolean @default(false)
+  mobilitAutoEcoleConduite Boolean @default(false)
+  mobilitBdi               Boolean @default(false)
+  mobilitBdiPermis         Boolean @default(false)
+  mobilitBdiReparation     Boolean @default(false)
+  mobilitApreva            Boolean @default(false)
+  mobilitItineraire        Boolean @default(false)
+  mobilitMicroCredit       Boolean @default(false)
+  mobilitCovoiturage       Boolean @default(false)
 
-  // Santé mentale
-  santeMentale Boolean @default(false)
+  // LOGEMENT
+  logementHabitatIndigne Boolean @default(false)
+  logementDemenagement   Boolean @default(false)
+  logementAcces          Boolean @default(false)
+  logementOrientation    Boolean @default(false)
+  logementRecherche      Boolean @default(false)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  // INCLUSION NUMERIQUE
+  numeriqueEspaceNumerique Boolean @default(false)
+  numeriqueAccompagnement  Boolean @default(false)
+  numeriqueCoursInfo       Boolean @default(false)
+
+  // AUTRES
+  autresInfoConseil Boolean @default(false)
+  autresInput       String?
+
+  // LUTTE CONTRE L'ISOLEMENT
+  isolementLienSocial Boolean @default(false)
+
+  // PARENTALITE
+  parentaliteSoutien        Boolean @default(false)
+  parentaliteModeGarde      Boolean @default(false)
+  parentalitePmi            Boolean @default(false)
+  parentaliteMaisonFamilles Boolean @default(false)
+  parentaliteMaison1000     Boolean @default(false)
+  parentaliteCafeCulturel   Boolean @default(false)
+  parentaliteMissionLocale  Boolean @default(false)
+  parentaliteAutreInput     String?
+
+  // ATELIERS DE REDYNAMISATION
+  atelierParticipation Boolean  @default(false)
+  atelierNoms          String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================
 // CONTRATS DE TRAVAIL
 // ============================================================
 
-model ContratDeTravail {
-  id       Int         @id @default(autoincrement())
+model ContratTravail {
+  id       Int    @id @default(autoincrement())
   personId Int
-  person   Person      @relation(fields: [personId], references: [id])
+  person   Person @relation(fields: [personId], references: [id])
 
   type      TypeContrat
   dateDebut DateTime    @db.Date
@@ -300,58 +363,79 @@ model ContratDeTravail {
 }
 
 // ============================================================
-// ACCOMPAGNEMENT FSE
+// ACCOMPAGNEMENT (anciennement AccompagnementFSE)
 // ============================================================
 
-model AccompagnementFSE {
-  id         Int     @id @default(autoincrement())
+model Accompagnement {
+  id         Int    @id @default(autoincrement())
   personId   Int
-  person     Person  @relation(fields: [personId], references: [id])
+  person     Person @relation(fields: [personId], references: [id])
   referentId Int?
-  referent   User?   @relation("ReferentFSE", fields: [referentId], references: [id])
+  referent   User?  @relation("ReferentAccompagnement", fields: [referentId], references: [id])
 
   dateEntree DateTime  @db.Date
   dateSortie DateTime? @db.Date
 
-  // RSA pendant le FSE
-  rsaDateEntree DateTime? @db.Date
-  rsaDateSortie DateTime? @db.Date
-
   // Ressources à l'entrée dans le FSE
-  ressourceRSA             Boolean @default(false)
-  ressourceASS             Boolean @default(false)
-  ressourceARE             Boolean @default(false)
-  ressourceAAH             Boolean @default(false)
-  ressourceSalaireConjoint Boolean @default(false)
-  ressourceInvalidite      Boolean @default(false)
-  ressourceSansRessources  Boolean @default(false)
+  ressourceRSA            Boolean @default(false)
+  ressourceASS            Boolean @default(false)
+  ressourceARE            Boolean @default(false)
+  ressourceAAH            Boolean @default(false)
+  ressourceASI            Boolean @default(false)
+  ressourceSansRessources Boolean @default(false)
 
-  // Situation AVANT le FSE (emploi occupé)
-  avantCDDMoins6Mois Boolean @default(false)
-  avantCDDPlus6Mois  Boolean @default(false)
-  avantCDI           Boolean @default(false)
-  avantIAE           Boolean @default(false)
-  avantIndependant   Boolean @default(false)
+  // Situation AVANT le FSE
+  avantOccupeEmploi       Boolean @default(false) // Oui / Non
+  // Si oui :
+  avantCDI                Boolean @default(false)
+  avantCDDPlus6Mois       Boolean @default(false)
+  avantCDDMoins6Mois      Boolean @default(false)
+  avantInterim            Boolean @default(false)
+  avantIAE                Boolean @default(false)
+  avantIndependant        Boolean @default(false)
+  // Si non :
+  avantFormationPro       Boolean @default(false)
+  avantEnRechercheEmploi  Boolean @default(false)
+  avantNeCherchePasEmploi Boolean @default(false)
 
-  // Démarches effectuées
-  demarcheDroitsCAF       Boolean @default(false)
-  demarcheSante           Boolean @default(false)
-  demarcheCSS             Boolean @default(false)
-  demarcheBilanSante      Boolean @default(false)
-  demarcheMobilite        Boolean @default(false)
-  demarcheRechercheEmploi Boolean @default(false)
-  demarcheCV              Boolean @default(false)
-  demarcheLogement        Boolean @default(false)
-  demarcheAteliers        Boolean @default(false)
-  demarcheNumerique       Boolean @default(false)
-  demarchePassNumerique   Boolean @default(false)
-  demarcheParentalite     Boolean @default(false)
+  // Niveau de formation
+  niveauFormation NiveauFormation?
 
-  // Situation de SORTIE
+  // Reconnaissance handicap
+  reconnaissanceHandicap Boolean @default(false)
+
+  // Situation logement à l'entrée
+  logementSDF       Boolean @default(false)
+  logementExclusion Boolean @default(false)
+
+  observation String?
+
+  // Relations
+  demarches  Demarches?
+  entretiens Entretien[]
+  sortie     AccompagnementSortie?
+  suiviASID  SuiviASID?
+  suiviEI    SuiviEI?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+// ============================================================
+// SORTIE FSE (anciennement champs sortie* dans AccompagnementFSE + ResultatASID)
+// ============================================================
+
+model AccompagnementSortie {
+  id               Int            @id @default(autoincrement())
+  accompagnementId Int            @unique
+  accompagnement   Accompagnement @relation(fields: [accompagnementId], references: [id])
+
   sortieCDDMoins6Mois        Boolean @default(false)
   sortieCDDPlus6Mois         Boolean @default(false)
   sortieCDI                  Boolean @default(false)
   sortieIAE                  Boolean @default(false)
+  sortieInterim              Boolean @default(false)
   sortieIndependant          Boolean @default(false)
   sortieMaintienEmploi       Boolean @default(false)
   sortieRechercheEmploi      Boolean @default(false)
@@ -366,123 +450,118 @@ model AccompagnementFSE {
   formationVille     String?
   formationDuree     String?
 
-  observation String?
-
-  // Lien optionnel vers ASID (tout ASID est aussi un FSE)
-  accompagnementASID AccompagnementASID?
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================
-// ACCOMPAGNEMENT ASID
+// SUIVI ASID (anciennement AccompagnementASID)
 // ============================================================
 
-model AccompagnementASID {
-  id       Int    @id @default(autoincrement())
-  personId Int
-  person   Person @relation(fields: [personId], references: [id])
+model SuiviASID {
+  id               Int            @id @default(autoincrement())
+  accompagnementId Int            @unique
+  accompagnement   Accompagnement @relation(fields: [accompagnementId], references: [id])
 
-  // Tout ASID est lié à un FSE
-  fseId Int               @unique
-  fse   AccompagnementFSE @relation(fields: [fseId], references: [id])
-
-  referentId Int?
-  referent   User? @relation("ReferentASID", fields: [referentId], references: [id])
+  referentId     Int?
+  referent       User?   @relation("ReferentSuiviASID", fields: [referentId], references: [id])
+  referentNom    String?
+  referentPrenom String?
 
   // Prescripteur = toujours un CMS
   prescripteurNom    String?
   prescripteurPrenom String?
-  prescripteurVille  String?
 
-  communeResidence   String?
-  dateEntree         DateTime  @db.Date
-  dateRenouvellement DateTime? @db.Date
-  dateSortie         DateTime? @db.Date
+  communeResidence    String?
+  dateEntree          DateTime  @db.Date
+  dateRenouvellement  DateTime? @db.Date
+  dateRenouvellement2 DateTime? @db.Date
+  dateSortie          DateTime? @db.Date
 
   // Indicateurs annuels
-  orientationNMoins1  Boolean @default(false)
-  orientationN        Boolean @default(false)
-  renouvellementN     Boolean @default(false)
-  suiviNMoins2EnCours Boolean @default(false)
-  suiviRealise        Boolean @default(true)
+  orientationNMoins1       Boolean @default(false)
+  orientationN             Boolean @default(false)
+  renouvellementN          Int     @default(0)
+  suiviNMoins2EnCours      Boolean @default(false)
+  suiviRealise             Boolean @default(true)
+  suiviNonRealiseRaison    String?
+  reorientation            Boolean @default(false)
+  reorientationDescription String?
 
   observation String?
 
-  entretiens EntretienASID[]
-  demarches  DemarcheASID?
+  prescriptions FichePrescriptionASID[]
+  cvs           CvASID[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 }
 
-// Rendez-vous individuels dans le cadre d'un suivi ASID
-model EntretienASID {
-  id               Int                @id @default(autoincrement())
+// Fiches de prescription jointes à un suivi ASID (PDF, plusieurs possibles)
+model FichePrescriptionASID {
+  id               Int       @id @default(autoincrement())
   accompagnementId Int
-  accompagnement   AccompagnementASID @relation(fields: [accompagnementId], references: [id])
+  suiviASID        SuiviASID @relation(fields: [accompagnementId], references: [id])
 
-  date   DateTime             @db.Date
-  sujets SujetEntretienASID[]
-  notes  String?
+  nom     String  // nom original du fichier
+  periode String? // "ENTREE" | "RENOUVELLEMENT_1" | "RENOUVELLEMENT_2"
+  contenu Bytes   // PDF stocké en base
+
+  createdAt DateTime @default(now())
+}
+
+// CVs et lettres de motivation joints à un suivi ASID (PDF ou Word, plusieurs possibles)
+model CvASID {
+  id               Int       @id @default(autoincrement())
+  accompagnementId Int
+  suiviASID        SuiviASID @relation(fields: [accompagnementId], references: [id])
+
+  nom     String // nom original du fichier
+  contenu Bytes // fichier stocké en base
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// SUIVI ESPACE D'INSERTION (EI)
+// ============================================================
+
+model SuiviEI {
+  id               Int            @id @default(autoincrement())
+  accompagnementId Int            @unique
+  accompagnement   Accompagnement @relation(fields: [accompagnementId], references: [id])
+
+  observation String?
+  cvs         CvEI[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 }
 
-// Jalons et résultats du suivi ASID
-model DemarcheASID {
-  id               Int                @id @default(autoincrement())
-  accompagnementId Int                @unique
-  accompagnement   AccompagnementASID @relation(fields: [accompagnementId], references: [id])
+// CVs et lettres de motivation joints à un suivi EI
+model CvEI {
+  id        Int     @id @default(autoincrement())
+  suiviEIId Int
+  suiviEI   SuiviEI @relation(fields: [suiviEIId], references: [id])
 
-  // Santé
-  css        Boolean @default(false)
-  suiviSante Boolean @default(false)
-  bilanSante Boolean @default(false)
-  soutienPsy Boolean @default(false)
+  nom     String // nom original du fichier
+  contenu Bytes  // fichier stocké en base
 
-  // Mobilité
-  permisObtenu         Boolean @default(false)
-  vehiculeDisponible   Boolean @default(false)
-  inscriptionAutoEcole Boolean @default(false)
-  autoEcoleCode        Boolean @default(false)
-  autoEcoleConduite    Boolean @default(false)
-  etatVehicule         String?
-  bdiVoiture           Boolean @default(false)
-  bdiPermis            Boolean @default(false)
-  carteSolidaire       Boolean @default(false)
+  createdAt DateTime @default(now())
+}
 
-  // Logement
-  habitatIndigne     Boolean @default(false)
-  demenagementsAcces Boolean @default(false)
+// Rendez-vous individuels dans le cadre d'un accompagnement
+model Entretien {
+  id Int @id @default(autoincrement())
 
-  // Emploi
-  rechercheEmploi     Boolean @default(false)
-  cvLm                Boolean @default(false)
-  offresProposees     Boolean @default(false)
-  entretiens          Boolean @default(false)
-  contratCDI          Boolean @default(false)
-  contratCDD          Boolean @default(false)
-  contratIAE          Boolean @default(false)
-  contratLieu         String?
-  projetProfessionnel Boolean @default(false)
-  immersion           Boolean @default(false)
+  accompagnementId Int?
+  accompagnement   Accompagnement? @relation(fields: [accompagnementId], references: [id])
 
-  // Atelier redynamisation
-  atelierRedynamisation Boolean @default(false)
-
-  // Parentalité
-  parentaliteEnfants   Boolean @default(false)
-  parentaliteModeGarde Boolean @default(false)
-  partMaisonFamilles   Boolean @default(false)
-  partMaison1000Bulles Boolean @default(false)
-  partPMI              Boolean @default(false)
-  partMissionLocale    Boolean @default(false)
+  date   DateTime         @db.Date
+  sujets SujetEntretien[]
+  notes  String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -494,9 +573,9 @@ model DemarcheASID {
 // ============================================================
 
 model ActionCollective {
-  id         Int          @id @default(autoincrement())
-  theme      ThemeAtelier
-  themeAutre String?
+  id          Int          @id @default(autoincrement())
+  theme       ThemeAtelier
+  themeAutre  String?
   prestataire String?
   lieu        String?
   date        DateTime     @db.Date
@@ -520,4 +599,38 @@ model ParticipationAtelier {
   deletedAt DateTime?
 
   @@unique([actionCollectiveId, personId])
+}
+
+model FichierEmargement {
+  id        Int          @id @default(autoincrement())
+  theme     ThemeAtelier
+  nom       String
+  contenu   Bytes
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model CompteurPartenaire {
+  id         Int      @id @default(autoincrement())
+  date       DateTime @db.Date
+  partenaire String
+  count      Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, partenaire])
+}
+
+model PersonnePartenaire {
+  id         Int      @id @default(autoincrement())
+  date       DateTime @db.Date
+  partenaire String
+  nom        String
+  dateRDV    DateTime @db.Date
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([date, partenaire])
 }

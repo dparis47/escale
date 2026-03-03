@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Person" ADD COLUMN     "enASID" BOOLEAN NOT NULL DEFAULT false;

@@ -1,0 +1,159 @@
+import { NextResponse } from 'next/server'
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { parseISO } from '@/lib/dates'
+import { schemaMajAccompagnement } from '@/schemas/accompagnement'
+
+async function getAccompagnement(id: number) {
+  return prisma.accompagnement.findFirst({ where: { id, deletedAt: null } })
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
+
+  if (session.user.role === 'ACCUEIL') {
+    return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
+  }
+
+  const { id: idStr } = await params
+  const id = Number(idStr)
+  if (isNaN(id)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
+
+  const accompagnement = await prisma.accompagnement.findFirst({
+    where: { id, deletedAt: null },
+    include: {
+      person:   { select: { id: true, nom: true, prenom: true, genre: true, dateNaissance: true } },
+      referent: { select: { id: true, nom: true, prenom: true } },
+      sortie:   true,
+      demarches: true,
+      entretiens: {
+        where:   { deletedAt: null },
+        orderBy: { date: 'desc' },
+      },
+      suiviASID: {
+        include: {
+          prescriptions: { select: { id: true, nom: true } },
+          cvs:           { select: { id: true, nom: true } },
+        },
+      },
+    },
+  })
+
+  if (!accompagnement) return NextResponse.json({ erreur: 'Accompagnement introuvable' }, { status: 404 })
+
+  return NextResponse.json(accompagnement)
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
+
+  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+    return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
+  }
+
+  const { id: idStr } = await params
+  const id = Number(idStr)
+  if (isNaN(id)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
+
+  const accompagnement = await getAccompagnement(id)
+  if (!accompagnement) return NextResponse.json({ erreur: 'Accompagnement introuvable' }, { status: 404 })
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ erreur: 'Corps de requête invalide' }, { status: 400 })
+  }
+
+  const parsed = schemaMajAccompagnement.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { erreur: 'Données invalides', details: parsed.error.flatten() },
+      { status: 422 },
+    )
+  }
+
+  const {
+    referentId,
+    dateEntree, dateSortie,
+    ressourceRSA, ressourceASS, ressourceARE, ressourceAAH,
+    ressourceASI, ressourceSansRessources,
+    avantOccupeEmploi, avantCDI, avantCDDPlus6Mois, avantCDDMoins6Mois,
+    avantInterim, avantIAE, avantIndependant, avantFormationPro,
+    avantEnRechercheEmploi, avantNeCherchePasEmploi,
+    niveauFormation, reconnaissanceHandicap,
+    logementSDF, logementExclusion,
+    observation,
+  } = parsed.data
+
+  const updated = await prisma.accompagnement.update({
+    where: { id },
+    data: {
+      ...(referentId             !== undefined ? { referentId: referentId ?? null }         : {}),
+      ...(dateEntree             !== undefined ? { dateEntree: parseISO(dateEntree) }        : {}),
+      ...(dateSortie             !== undefined ? { dateSortie: dateSortie ? parseISO(dateSortie) : null } : {}),
+      ...(observation            !== undefined ? { observation }                             : {}),
+      ...(ressourceRSA           !== undefined ? { ressourceRSA }                           : {}),
+      ...(ressourceASS           !== undefined ? { ressourceASS }                           : {}),
+      ...(ressourceARE           !== undefined ? { ressourceARE }                           : {}),
+      ...(ressourceAAH           !== undefined ? { ressourceAAH }                           : {}),
+      ...(ressourceASI           !== undefined ? { ressourceASI }                           : {}),
+      ...(ressourceSansRessources !== undefined ? { ressourceSansRessources }               : {}),
+      ...(avantOccupeEmploi      !== undefined ? { avantOccupeEmploi }                      : {}),
+      ...(avantCDI               !== undefined ? { avantCDI }                               : {}),
+      ...(avantCDDPlus6Mois      !== undefined ? { avantCDDPlus6Mois }                      : {}),
+      ...(avantCDDMoins6Mois     !== undefined ? { avantCDDMoins6Mois }                     : {}),
+      ...(avantInterim           !== undefined ? { avantInterim }                            : {}),
+      ...(avantIAE               !== undefined ? { avantIAE }                               : {}),
+      ...(avantIndependant       !== undefined ? { avantIndependant }                        : {}),
+      ...(avantFormationPro      !== undefined ? { avantFormationPro }                       : {}),
+      ...(avantEnRechercheEmploi !== undefined ? { avantEnRechercheEmploi }                 : {}),
+      ...(avantNeCherchePasEmploi !== undefined ? { avantNeCherchePasEmploi }               : {}),
+      ...(niveauFormation        !== undefined ? { niveauFormation: niveauFormation ?? null } : {}),
+      ...(reconnaissanceHandicap !== undefined ? { reconnaissanceHandicap }                  : {}),
+      ...(logementSDF            !== undefined ? { logementSDF }                             : {}),
+      ...(logementExclusion      !== undefined ? { logementExclusion }                       : {}),
+    },
+  })
+
+  return NextResponse.json(updated)
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
+
+  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+    return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
+  }
+
+  const { id: idStr } = await params
+  const id = Number(idStr)
+  if (isNaN(id)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
+
+  const accompagnement = await getAccompagnement(id)
+  if (!accompagnement) return NextResponse.json({ erreur: 'Accompagnement introuvable' }, { status: 404 })
+
+  const now = new Date()
+  await prisma.$transaction(async (tx) => {
+    await tx.accompagnement.update({ where: { id }, data: { deletedAt: now } })
+    // Soft delete du SuiviASID s'il existe
+    const suivi = await tx.suiviASID.findUnique({ where: { accompagnementId: id } })
+    if (suivi) {
+      await tx.suiviASID.update({ where: { id: suivi.id }, data: { deletedAt: now } })
+    }
+  })
+
+  return new NextResponse(null, { status: 204 })
+}

@@ -1,0 +1,1 @@
+-- Fusionné dans 20260301182127_contrat_travail (no-op)
