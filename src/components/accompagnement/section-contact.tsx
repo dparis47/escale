@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { useModeEdition, useRegistrerSauvegarde } from '@/contexts/sauvegarde-accompagnement'
 
 interface Props {
@@ -37,8 +38,7 @@ export function SectionContact({ personId, adresse, telephone, mobile, email }: 
 
   useRegistrerSauvegarde('contact', sauvegarder)
 
-  const champs: Array<{ label: string; key: keyof typeof vals }> = [
-    { label: 'Adresse',   key: 'adresse'   },
+  const champsSimples: Array<{ label: string; key: keyof typeof vals }> = [
     { label: 'Téléphone', key: 'telephone' },
     { label: 'Mobile',    key: 'mobile'    },
     { label: 'Email',     key: 'email'     },
@@ -46,7 +46,21 @@ export function SectionContact({ personId, adresse, telephone, mobile, email }: 
 
   return (
     <div>
-      {champs.map(({ label, key }) => (
+      {/* Adresse (multilignes) */}
+      <div className="flex gap-2 py-0.5 text-sm">
+        <span className="w-52 shrink-0 text-muted-foreground">Adresse</span>
+        {modeEdition ? (
+          <Textarea
+            className="text-sm resize-y"
+            rows={2}
+            value={vals.adresse}
+            onChange={(e) => setVals((prev) => ({ ...prev, adresse: e.target.value }))}
+          />
+        ) : (
+          <span className="whitespace-pre-line">{vals.adresse || '—'}</span>
+        )}
+      </div>
+      {champsSimples.map(({ label, key }) => (
         <div key={key} className="flex items-center gap-2 py-0.5 text-sm">
           <span className="w-52 shrink-0 text-muted-foreground">{label}</span>
           {modeEdition ? (

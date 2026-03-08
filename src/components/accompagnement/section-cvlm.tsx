@@ -68,6 +68,9 @@ export function SectionCVLM({ accompagnementId, cvs: cvsInit }: Props) {
         className="hidden"
         onChange={uploaderCv}
       />
+      {cvs.length === 0 && !modeEdition && (
+        <p className="text-sm text-muted-foreground">Aucun CV ou LM enregistré.</p>
+      )}
       {cvs.map((cv) => (
         <div key={cv.id} className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => telechargerCv(cv.id, cv.nom)} disabled={cvEnCours}>

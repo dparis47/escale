@@ -2,33 +2,23 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { formaterDateCourte } from '@/lib/dates'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { Button } from '@/components/ui/button'
-import {
-  SITUATIONS_FR,
-  RESSOURCES_FR,
-  ORIENTE_PAR_FR,
-} from '@/schemas/person'
 import { BoutonSupprimerPersonne } from '@/components/personnes/bouton-supprimer-personne'
-import type { SituationFamiliale, OrientePar, Ressource } from '@prisma/client'
-
-function Ligne({ label, valeur }: { label: string; valeur: React.ReactNode }) {
-  if (!valeur && valeur !== 0 && valeur !== false) return null
-  return (
-    <div className="flex gap-2 py-0.5 text-sm">
-      <span className="w-48 shrink-0 text-muted-foreground">{label}</span>
-      <span>{valeur}</span>
-    </div>
-  )
-}
-
-function OuiNon({ valeur }: { valeur: boolean }) {
-  return <span>{valeur ? 'Oui' : 'Non'}</span>
-}
+import { SectionInfoPersonne } from '@/components/personnes/section-info-personne'
+import { BoutonCompleterFiche } from '@/components/personnes/bouton-completer-fiche'
+import { BoutonsAccompagnement } from '@/components/personnes/boutons-accompagnement'
+import { BoutonExportPDF } from '@/components/personnes/bouton-export-pdf'
+import { SauvegardeProvider, BoutonEnregistrerGlobal } from '@/contexts/sauvegarde-accompagnement'
+import { SectionCVLM } from '@/components/accompagnement/section-cvlm'
+import { SectionContrats } from '@/components/accompagnement/section-contrats'
+import { SectionEntretiens } from '@/components/accompagnement/section-entretiens'
+import { SectionDemarches } from '@/components/accompagnement/section-demarches'
+import type { SujetEntretien } from '@prisma/client'
 
 function SectionTitre({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 mt-6 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <h2 className="mb-3 mt-6 rounded-md bg-blue-50 px-2 py-1 text-sm font-semibold uppercase tracking-wide text-blue-700">
       {children}
     </h2>
   )
@@ -63,133 +53,174 @@ export default async function FichePersonnePage({
         orderBy: { dateEntree: 'desc' },
         include: { suiviASID: { select: { id: true } } },
       },
+      contratsTravail: {
+        where:   { deletedAt: null },
+        orderBy: { dateDebut: 'desc' },
+      },
+      cvs: { select: { id: true, nom: true }, orderBy: { createdAt: 'asc' } },
     },
   })
 
   if (!personne) notFound()
 
+  const isTS         = session.user.role === 'TRAVAILLEUR_SOCIAL'
   const peutModifier = session.user.role !== 'DIRECTION'
 
+  // Charger l'accompagnement EI (dossier individuel invisible) avec ses relations
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let accompEI = await (prisma.accompagnement.findFirst as any)({
+    where: {
+      personId: id,
+      deletedAt: null,
+      suiviEI: { isNot: null },
+    },
+    include: {
+      demarches: true,
+      entretiens: {
+        where:   { deletedAt: null },
+        orderBy: { date: 'desc' },
+      },
+      suiviEI: true,
+    },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any
+
+  // Safety net : si aucun EI n'existe, en créer un
+  if (!accompEI) {
+    const newAccomp = await prisma.accompagnement.create({
+      data: { personId: id, dateEntree: new Date() },
+    })
+    await prisma.demarches.create({ data: { accompagnementId: newAccomp.id } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (prisma as any).suiviEI.create({ data: { accompagnementId: newAccomp.id } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    accompEI = await (prisma.accompagnement.findFirst as any)({
+      where: { id: newAccomp.id },
+      include: {
+        demarches: true,
+        entretiens: { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+        suiviEI: true,
+      },
+    })
+  }
+
+  const accompEIId = accompEI.id as number
+
+  // Accompagnements formels (FSE+/ASID seulement, sans les EI)
+  const accompagnementsFormels = personne.accompagnements.filter(
+    (a) => a.id !== accompEIId
+  )
+
+  // Vérifier s'il y a un accompagnement FSE+ ou ASID en cours (sans date de sortie)
+  const aFSEEnCours  = accompagnementsFormels.some((a) => !a.dateSortie)
+  const aASIDEnCours = accompagnementsFormels.some((a) => !a.dateSortie && a.suiviASID)
+
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-6">
-      {/* Bandeau personne sans fiche */}
+    <SauvegardeProvider>
+    <main className="container mx-auto max-w-6xl px-4 py-6">
+      {/* Bandeau personne sans fiche complétée */}
       {!personne.estInscrit && (
         <div className="mb-4 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <span>
-            Cette personne n&apos;a pas de fiche d&apos;inscription — elle a été créée automatiquement à partir d&apos;une visite.
+            Cette personne n&apos;a pas de dossier individuel complété — elle a été créée automatiquement à partir d&apos;une visite.
           </span>
-          {peutModifier && (
-            <Link href={`/personnes/${id}/modifier`}>
-              <Button size="sm" variant="outline" className="ml-4 border-amber-400 text-amber-800 hover:bg-amber-100">
-                Créer la fiche
-              </Button>
-            </Link>
-          )}
+          {peutModifier && <BoutonCompleterFiche />}
         </div>
       )}
 
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-blue-700">
-            {personne.nom} {personne.prenom}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {personne.genre === 'HOMME' ? 'Homme' : 'Femme'}
-            {' · '}
-            {personne._count.visites} visite{personne._count.visites > 1 ? 's' : ''}
-          </p>
-          {personne.dateActualisation && (
-            <p className="mt-1 inline-block rounded bg-blue-100 px-2 py-0.5 text-base font-bold text-blue-800">
-              Actualisé le {formaterDateCourte(personne.dateActualisation)}
+      <div className="sticky top-0 z-10 bg-background border-b pb-3 mb-4 -mx-4 px-4 pt-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-blue-700">
+              {personne.nom.toUpperCase()} {capitaliserPrenom(personne.prenom)}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+                {personne.dateActualisation
+                  ? `Dernière mise à jour le ${formaterDateCourte(personne.dateActualisation)}`
+                  : 'Non actualisé'}
+              </span>
+              {' · '}
+              {personne._count.visites} visite{personne._count.visites > 1 ? 's' : ''}
             </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {peutModifier && (
-            <Link href={`/personnes/${id}/modifier`}>
-              <Button variant="outline">Modifier</Button>
-            </Link>
-          )}
-          <BoutonSupprimerPersonne id={id} redirectApres="/personnes" />
-          <Link href="/personnes">
-            <Button variant="ghost">← Retour</Button>
-          </Link>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <BoutonExportPDF id={id} nom={personne.nom} prenom={personne.prenom} />
+              {peutModifier && <BoutonEnregistrerGlobal />}
+              <BoutonSupprimerPersonne id={id} redirectApres="/personnes" />
+              <Link href="/personnes">
+                <Button variant="ghost">← Retour</Button>
+              </Link>
+            </div>
+            {isTS && (!aFSEEnCours || !aASIDEnCours) && (
+              <BoutonsAccompagnement personId={id} aFSEEnCours={aFSEEnCours} aASIDEnCours={aASIDEnCours} />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── Identité ────────────────────────────────────── */}
-      <SectionTitre>Identité</SectionTitre>
-      <Ligne label="Date de naissance" valeur={personne.dateNaissance ? formaterDateCourte(personne.dateNaissance) : null} />
-      <Ligne label="Nationalité"       valeur={personne.nationalite} />
+      <div className="flex gap-6 items-start">
+      <div className="flex-1 min-w-0">
 
-      {/* ── Contact ─────────────────────────────────────── */}
-      <SectionTitre>Contact</SectionTitre>
-      <Ligne label="Adresse"             valeur={personne.adresse} />
-      <Ligne label="Téléphone"           valeur={personne.telephone} />
-      <Ligne label="Mobile" valeur={personne.mobile} />
-      <Ligne label="Email"  valeur={personne.email} />
+      {/* ── Infos personne (lecture / édition inline) ──────── */}
+      <SectionInfoPersonne personne={personne} />
 
-      {/* ── Santé ────────────────────────────────────────── */}
-      <SectionTitre>Santé</SectionTitre>
-      {personne.css        && <Ligne label="CSS"       valeur="Oui" />}
-      {personne.rqth       && <Ligne label="RQTH"      valeur="Oui" />}
-      {personne.invalidite && (
+      {/* ── CV - Lettre(s) de motivation ───────────────────── */}
+      {isTS && (
         <>
-          <Ligne label="Invalidité"           valeur="Oui" />
-          <Ligne label="Catégorie invalidité" valeur={personne.categorieInvalidite} />
+          <SectionTitre>CV - Lettre(s) de motivation</SectionTitre>
+          <SectionCVLM
+            accompagnementId={accompEIId}
+            cvs={personne.cvs}
+          />
         </>
       )}
-      <Ligne label="N° de sécurité sociale" valeur={personne.numeroSecu} />
-      {!personne.css && !personne.rqth && !personne.invalidite && !personne.numeroSecu && (
-        <p className="text-sm text-muted-foreground">Aucune information renseignée.</p>
-      )}
 
-      {/* ── France Travail ───────────────────────────────── */}
-      <SectionTitre>France Travail</SectionTitre>
-      <Ligne label="N° France Travail"     valeur={personne.numeroFT} />
-      <Ligne label="Date d'inscription FT" valeur={personne.dateInscriptionFT ? formaterDateCourte(personne.dateInscriptionFT) : null} />
-      <Ligne label="Code personnel (CP)"   valeur={personne.codepersonnelFT} />
-      {personne.accoGlo && <Ligne label="Accompagnement global FT" valeur="Oui" />}
-
-      {/* ── CAF & Situation familiale ────────────────────── */}
-      <SectionTitre>Situation familiale</SectionTitre>
-      <Ligne label="N° CAF"               valeur={personne.numeroCAF} />
-      <Ligne label="Situation familiale"  valeur={personne.situationFamiliale ? SITUATIONS_FR[personne.situationFamiliale as SituationFamiliale] : null} />
-      <Ligne label="Enfants à charge"     valeur={personne.nombreEnfantsCharge} />
-      {personne.agesEnfants.length > 0 && (
-        <Ligne label="Âges des enfants" valeur={personne.agesEnfants.join(', ') + ' ans'} />
-      )}
-
-      {/* ── Mobilité ─────────────────────────────────────── */}
-      <SectionTitre>Mobilité &amp; hébergement</SectionTitre>
-      {personne.permisConduire    && <Ligne label="Permis de conduire"  valeur="Oui" />}
-      {personne.vehiculePersonnel && <Ligne label="Véhicule personnel"  valeur="Oui" />}
-      <Ligne label="Autre(s) locomotion" valeur={personne.autresMoyensLocomotion} />
-      <Ligne label="Hébergement"         valeur={personne.hebergement} />
-
-      {/* ── Ressources & Orientation ─────────────────────── */}
-      <SectionTitre>Ressources &amp; orientation</SectionTitre>
-      {personne.ressources.length > 0 ? (
-        <Ligne
-          label="Ressources"
-          valeur={personne.ressources.map((r) => RESSOURCES_FR[r as Ressource]).join(', ')}
+      {/* ── Contrat(s) de travail ──────────────────────────── */}
+      <SectionTitre>Contrat(s) de travail</SectionTitre>
+      {isTS ? (
+        <SectionContrats
+          accompagnementId={accompEIId}
+          contrats={personne.contratsTravail}
         />
       ) : (
-        <Ligne label="Ressources" valeur="Non renseignées" />
+        personne.contratsTravail.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun contrat enregistré.</p>
+        ) : (
+          <ul className="space-y-1 text-sm">
+            {personne.contratsTravail.map((c) => (
+              <li key={c.id} className="flex gap-2">
+                <span className="font-medium">{c.type}</span>
+                <span className="text-muted-foreground">{formaterDateCourte(c.dateDebut)}</span>
+                {c.dateFin && <span className="text-muted-foreground">→ {formaterDateCourte(c.dateFin)}</span>}
+                {c.employeur && <span>{c.employeur}</span>}
+              </li>
+            ))}
+          </ul>
+        )
       )}
-      <Ligne
-        label="Orienté(e) par"
-        valeur={personne.orientePar ? ORIENTE_PAR_FR[personne.orientePar as OrientePar] : null}
-      />
-      {personne.enASID && <Ligne label="Suivi ASID" valeur="Oui" />}
 
-      {/* ── Accompagnements ──────────────────────────────── */}
+      {/* ── Entretiens ─────────────────────────────────────── */}
+      <SectionTitre>Entretiens ({accompEI.entretiens?.length ?? 0})</SectionTitre>
+      <SectionEntretiens
+        accompagnementId={accompEIId}
+        entretiens={(accompEI.entretiens ?? []).map((e: { id: number; date: Date; sujets: SujetEntretien[]; notes: string | null; deletedAt: Date | null }) => ({
+          id:        e.id,
+          date:      e.date,
+          sujets:    e.sujets as SujetEntretien[],
+          notes:     e.notes,
+          deletedAt: e.deletedAt,
+        }))}
+      />
+
+      {/* ── Accompagnements formels (FSE+ / ASID) ──────────── */}
       <SectionTitre>Accompagnements</SectionTitre>
-      {personne.accompagnements.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucun accompagnement enregistré.</p>
+      {accompagnementsFormels.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Aucun accompagnement formel enregistré.</p>
       ) : (
         <div className="space-y-2">
-          {personne.accompagnements.map((acc) => (
+          {accompagnementsFormels.map((acc) => (
             <div key={acc.id} className="flex items-center gap-3 text-sm">
               <div className="flex gap-1">
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">FSE+</span>
@@ -211,7 +242,7 @@ export default async function FichePersonnePage({
         </div>
       )}
 
-      {/* ── Historique des visites ───────────────────────── */}
+      {/* ── Historique des visites ──────────────────────────── */}
       <SectionTitre>
         Historique des visites ({personne._count.visites})
       </SectionTitre>
@@ -252,6 +283,21 @@ export default async function FichePersonnePage({
           </table>
         </div>
       )}
+
+      </div>{/* fin colonne principale */}
+
+      {/* ── Sidebar démarches ────────────────────────────────── */}
+      <aside className="w-80 shrink-0 sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto border-l pl-6">
+        <h2 className="sticky top-0 z-10 mb-3 mt-2 border-b bg-background pb-1 pt-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Démarches
+        </h2>
+        <SectionDemarches
+          accompagnementId={accompEIId}
+          demarches={accompEI.demarches}
+        />
+      </aside>
+      </div>{/* fin flex */}
     </main>
+    </SauvegardeProvider>
   )
 }

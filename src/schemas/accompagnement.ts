@@ -72,8 +72,6 @@ export const schemaCreerAccompagnement = z.object({
   personneGenre:         z.enum(['HOMME', 'FEMME']).optional(),
   personneDateNaissance: z.string().regex(dateRegex).optional(),
 
-  referentId: z.number().int().positive().optional(),
-
   dateEntree: z.string().regex(dateRegex, 'Format YYYY-MM-DD attendu'),
   dateSortie: z.string().regex(dateRegex).optional(),
 
@@ -111,9 +109,6 @@ export const schemaCreerAccompagnement = z.object({
 
   // Suivi ASID optionnel (absent = FSE seul)
   suiviASID: schemaSuiviASIDBase.optional(),
-
-  // Espace d'Insertion (EI) — si true, crée un SuiviEI au lieu d'un FSE classique
-  suiviEI: z.boolean().optional(),
 })
 
 export type CreerAccompagnementInput = z.infer<typeof schemaCreerAccompagnement>
@@ -129,8 +124,9 @@ export const schemaMajAccompagnement = schemaCreerAccompagnement
   })
   .partial()
   .extend({
-    dateSortie:  z.string().regex(dateRegex).nullable().optional(),
-    observation: z.string().nullable().optional(),
+    dateSortie:   z.string().regex(dateRegex).nullable().optional(),
+    observation:  z.string().nullable().optional(),
+    estBrouillon: z.boolean().optional(),
   })
 
 export type MajAccompagnementInput = z.infer<typeof schemaMajAccompagnement>

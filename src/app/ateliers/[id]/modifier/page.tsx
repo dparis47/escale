@@ -2,8 +2,6 @@ import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { FormulaireAtelier } from '@/components/ateliers/formulaire-atelier'
-import { THEMES_ATELIER_FR } from '@/schemas/atelier'
-import type { ThemeAtelier } from '@prisma/client'
 
 export default async function ModifierAtelierPage({
   params,
@@ -20,6 +18,9 @@ export default async function ModifierAtelierPage({
 
   const atelier = await prisma.actionCollective.findFirst({
     where: { id, deletedAt: null },
+    include: {
+      themeRef: true,
+    },
   })
 
   if (!atelier) notFound()
@@ -29,19 +30,20 @@ export default async function ModifierAtelierPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Modifier l&apos;atelier</h1>
         <p className="text-sm text-muted-foreground">
-          {THEMES_ATELIER_FR[atelier.theme as ThemeAtelier]}
+          {atelier.themeRef.nom}
         </p>
       </div>
       <FormulaireAtelier
         mode="edition"
         atelier={{
-          id:          atelier.id,
-          theme:       atelier.theme as ThemeAtelier,
-          themeAutre:  atelier.themeAutre,
-          prestataire: atelier.prestataire,
-          lieu:        atelier.lieu,
-          date:        atelier.date,
-          notes:       atelier.notes,
+          id:            atelier.id,
+          themeId:       atelier.themeId,
+          themeNom:      atelier.themeRef.nom,
+          themeAutre:    atelier.themeAutre,
+          prestataireId: atelier.prestataireId,
+          lieu:          atelier.lieu,
+          date:          atelier.date,
+          notes:         atelier.notes,
         }}
       />
     </main>

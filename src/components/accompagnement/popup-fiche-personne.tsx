@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { formaterDateCourte } from '@/lib/dates'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 
 interface PersonData {
   id:               number
@@ -82,7 +82,7 @@ export function PopupFichePersonne({ personId, label = 'Voir la fiche personne' 
         <DialogHeader>
           <DialogTitle>
             {personne
-              ? `${personne.nom.toUpperCase()} ${personne.prenom}`
+              ? `${personne.nom.toUpperCase()} ${capitaliserPrenom(personne.prenom)}`
               : 'Fiche personne'}
           </DialogTitle>
         </DialogHeader>

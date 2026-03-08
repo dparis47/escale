@@ -1,4 +1,5 @@
 import { SelectPartenaires } from './select-partenaires'
+import { capitaliserPrenom } from '@/lib/dates'
 
 interface VisitePartenaire {
   id:         number
@@ -35,7 +36,7 @@ export function SectionPartenaires({ visites }: Props) {
           {visites.map((visite) => (
             <tr key={visite.id} className="border-t border-violet-100">
               <td className="px-3 py-2 font-medium text-blue-700 whitespace-nowrap">
-                {visite.person.nom.toUpperCase()} {visite.person.prenom}
+                {visite.person.nom.toUpperCase()} {capitaliserPrenom(visite.person.prenom)}
               </td>
               <td className="px-3 py-2">
                 <SelectPartenaires

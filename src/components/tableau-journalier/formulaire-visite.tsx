@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Genre } from '@prisma/client'
 import type { VisiteAvecRelations } from '@/types/visits'
+import { Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { RecherchePersonne } from './recherche-personne'
 import { SectionMotifs } from './section-motifs'
 import { DEMARCHE_VIDE, fromPrisma, type DemarcheChamps } from '@/lib/demarches'
+import { capitaliserPrenom } from '@/lib/dates'
 
 type Mode = 'creation' | 'edition'
 
@@ -30,7 +32,7 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
   const [genre, setGenre]               = useState<Genre | ''>(visite?.person?.genre ?? '')
   const [personId, setPersonId]         = useState<number | null>(visite?.personId ?? null)
   const [nomPersonne, setNomPersonne]   = useState(
-    visite?.person ? `${visite.person.prenom} ${visite.person.nom}` : ''
+    visite?.person ? `${capitaliserPrenom(visite.person.prenom)} ${visite.person.nom.toUpperCase()}` : ''
   )
   const [nomLibre, setNomLibre]         = useState('')
   const [prenomLibre, setPrenomLibre]   = useState('')
@@ -158,7 +160,9 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
       {mode === 'creation' ? (
         <Button onClick={ouvrir}>+ Ajouter une visite</Button>
       ) : (
-        <Button variant="outline" size="sm" onClick={ouvrir}>Modifier</Button>
+        <Button variant="ghost" size="sm" onClick={ouvrir} title="Modifier la visite" aria-label="Modifier">
+          <Pencil className="h-4 w-4" />
+        </Button>
       )}
 
       <Dialog open={ouvert} onOpenChange={setOuvert}>
@@ -178,7 +182,7 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
                   valeurInitiale={nomPersonne}
                   onSelect={(p) => {
                     setPersonId(p.id)
-                    setNomPersonne(`${p.prenom} ${p.nom}`)
+                    setNomPersonne(`${capitaliserPrenom(p.prenom)} ${p.nom.toUpperCase()}`)
                     setGenre(p.genre)
                   }}
                 />
@@ -223,7 +227,7 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
                             className="cursor-pointer px-3 py-2 text-sm hover:bg-muted"
                             onMouseDown={() => selectionnerSansFiche(s)}
                           >
-                            {s.nom.toUpperCase()}{s.prenom ? ` ${s.prenom}` : ''}
+                            {s.nom.toUpperCase()}{s.prenom ? ` ${capitaliserPrenom(s.prenom)}` : ''}
                           </li>
                         ))}
                       </ul>
@@ -257,25 +261,15 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
             </div>
 
             {/* Orienté par FT + FSE */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="orienteParFT"
-                  checked={orienteParFT}
-                  onCheckedChange={(v) => setOrienteParFT(!!v)}
-                />
-                <Label htmlFor="orienteParFT" className="cursor-pointer font-normal">
-                  Orienté·e par France Travail
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="fse"
-                  checked={fse}
-                  onCheckedChange={(v) => setFse(!!v)}
-                />
-                <Label htmlFor="fse" className="cursor-pointer font-normal">FSE</Label>
-              </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="orienteParFT"
+                checked={orienteParFT}
+                onCheckedChange={(v) => setOrienteParFT(!!v)}
+              />
+              <Label htmlFor="orienteParFT" className="cursor-pointer font-normal">
+                Orienté·e par France Travail
+              </Label>
             </div>
 
             {/* Démarches */}

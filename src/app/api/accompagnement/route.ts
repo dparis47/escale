@@ -20,6 +20,8 @@ export async function GET(request: Request) {
 
   const where = {
     deletedAt: null,
+    // Exclure les dossiers individuels (EI) — seuls FSE+ et ASID
+    suiviEI: null,
     ...(q.length >= 2
       ? {
           person: {
@@ -32,8 +34,9 @@ export async function GET(request: Request) {
       : {}),
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [accompagnements, total] = await Promise.all([
-    prisma.accompagnement.findMany({
+    (prisma.accompagnement.findMany as any)({
       where,
       include: {
         person:   { select: { id: true, nom: true, prenom: true } },
@@ -43,7 +46,8 @@ export async function GET(request: Request) {
       skip:    (page - 1) * PAR_PAGE,
       take:    PAR_PAGE,
     }),
-    prisma.accompagnement.count({ where }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prisma.accompagnement.count({ where: where as any }),
   ])
 
   return NextResponse.json({ accompagnements, total })
@@ -75,7 +79,6 @@ export async function POST(request: Request) {
   const {
     personId,
     personneNom, personnePrenom, personneGenre, personneDateNaissance,
-    referentId,
     dateEntree, dateSortie,
     ressourceRSA, ressourceASS, ressourceARE, ressourceAAH,
     ressourceASI, ressourceSansRessources,
@@ -86,7 +89,6 @@ export async function POST(request: Request) {
     logementSDF, logementExclusion,
     observation,
     suiviASID: suiviASIDData,
-    suiviEI:   suiviEIData,
   } = parsed.data
 
   // Résoudre la personne (existante ou création inline)
@@ -116,7 +118,6 @@ export async function POST(request: Request) {
     const created = await tx.accompagnement.create({
       data: {
         personId:   resolvedPersonId,
-        referentId: referentId ?? null,
         dateEntree: parseISO(dateEntree),
         dateSortie: dateSortie ? parseISO(dateSortie) : null,
         ressourceRSA,
@@ -182,12 +183,6 @@ export async function POST(request: Request) {
           observation:              asidObservation          ?? null,
         },
       })
-    }
-
-    // Créer le SuiviEI si demandé
-    if (suiviEIData) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (tx as any).suiviEI.create({ data: { accompagnementId: created.id } })
     }
 
     return created

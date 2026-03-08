@@ -61,3 +61,46 @@ export function estAujourdhui(dateISO: string): boolean {
 export function estFutur(dateISO: string): boolean {
   return dateISO > dateAujourdhui()
 }
+
+/** Mois courant en "2026-03" */
+export function moisAujourdhui(): string {
+  const now = new Date()
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0')
+  return `${now.getUTCFullYear()}-${m}`
+}
+
+/** "2026-03" → "2026-02" */
+export function moisPrecedent(moisISO: string): string {
+  const [annee, mois] = moisISO.split('-').map(Number)
+  if (mois === 1) return `${annee - 1}-12`
+  return `${annee}-${String(mois - 1).padStart(2, '0')}`
+}
+
+/** "2026-03" → "2026-04" */
+export function moisSuivant(moisISO: string): string {
+  const [annee, mois] = moisISO.split('-').map(Number)
+  if (mois === 12) return `${annee + 1}-01`
+  return `${annee}-${String(mois + 1).padStart(2, '0')}`
+}
+
+/** Est-ce que moisISO est dans le futur (après le mois courant) ? */
+export function estMoisFutur(moisISO: string): boolean {
+  return moisISO > moisAujourdhui()
+}
+
+/** "2026-03" → "mars 2026" (fr-FR) */
+export function formaterMois(moisISO: string): string {
+  return new Date(`${moisISO}-01T00:00:00.000Z`).toLocaleDateString('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+/** "marie" → "Marie", "MARIE-CLAIRE" → "Marie-Claire" */
+export function capitaliserPrenom(prenom: string): string {
+  return prenom
+    .split('-')
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join('-')
+}

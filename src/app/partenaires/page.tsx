@@ -1,7 +1,11 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Upload } from 'lucide-react'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { Button } from '@/components/ui/button'
 import { NavigationAnnee } from '@/components/tableau-journalier/navigation-annee'
+import { BoutonExportPartenaires } from '@/components/tableau-journalier/bouton-export-partenaires'
 import { TableauPartenaires, PARTENAIRES_FIXES } from '@/components/tableau-journalier/tableau-partenaires'
 import { ListePersonnesPartenaire } from '@/components/tableau-journalier/liste-personnes-partenaire'
 import type { JourData } from '@/components/tableau-journalier/tableau-partenaires'
@@ -73,7 +77,20 @@ export default async function AccueilPartenairesPage({
     <main className="container mx-auto px-4 py-6">
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-700">Accueil partenaires</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-blue-700">Accueil partenaires</h1>
+            <BoutonExportPartenaires annee={annee} />
+            <Link href="/import/partenaires">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Importer Excel"
+                className="h-8 w-8 text-blue-700 hover:text-blue-900"
+              >
+                <Upload className="h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
           <p className="text-blue-600 font-medium">{annee}</p>
         </div>
         <NavigationAnnee annee={annee} />

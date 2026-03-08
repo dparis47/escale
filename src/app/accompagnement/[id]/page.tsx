@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { formaterDateCourte } from '@/lib/dates'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { Button } from '@/components/ui/button'
 import { SauvegardeProvider, BoutonEnregistrerGlobal } from '@/contexts/sauvegarde-accompagnement'
 import { SectionSuiviFSE } from '@/components/accompagnement/section-suivi-fse'
@@ -12,12 +12,13 @@ import { SectionAccompagnementASID } from '@/components/accompagnement/section-a
 import { SectionEntretiens } from '@/components/accompagnement/section-entretiens'
 import { SectionContrats } from '@/components/accompagnement/section-contrats'
 import { SectionCVLM } from '@/components/accompagnement/section-cvlm'
-import { SectionCVLMEI } from '@/components/accompagnement/section-cvlm-ei'
 import { SectionAccompagnementEI } from '@/components/accompagnement/section-accompagnement-ei'
 import { SectionDemarches } from '@/components/accompagnement/section-demarches'
 import { SectionContact } from '@/components/accompagnement/section-contact'
 import { BoutonSupprimerAccompagnement } from '@/components/accompagnement/bouton-supprimer-accompagnement'
+import { BoutonFinaliserAccompagnement } from '@/components/accompagnement/bouton-finaliser-accompagnement'
 import { PopupFichePersonne } from '@/components/accompagnement/popup-fiche-personne'
+import { BoutonExportPDFAccompagnement } from '@/components/accompagnement/bouton-export-pdf'
 import type { SujetEntretien } from '@prisma/client'
 
 function SectionTitre({ children }: { children: React.ReactNode }) {
@@ -41,8 +42,7 @@ export default async function FicheAccompagnementPage({
   const id = Number(idStr)
   if (isNaN(id)) notFound()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const accompagnement = await (prisma.accompagnement.findFirst as any)({
+  const accompagnement = await prisma.accompagnement.findFirst({
     where: { id, deletedAt: null },
     include: {
       person: {
@@ -53,9 +53,9 @@ export default async function FicheAccompagnementPage({
             where:   { deletedAt: null },
             orderBy: { dateDebut: 'desc' },
           },
+          cvs: { select: { id: true, nom: true }, orderBy: { createdAt: 'asc' } },
         },
       },
-      referent:  { select: { id: true, nom: true, prenom: true } },
       sortie:    true,
       demarches: true,
       entretiens: {
@@ -65,23 +65,17 @@ export default async function FicheAccompagnementPage({
       suiviASID: {
         include: {
           prescriptions: { select: { id: true, nom: true, periode: true }, orderBy: { createdAt: 'asc' } },
-          cvs:           { select: { id: true, nom: true }, orderBy: { createdAt: 'asc' } },
         },
       },
-      suiviEI: {
-        include: {
-          cvs: { select: { id: true, nom: true }, orderBy: { createdAt: 'asc' } },
-        },
-      },
+      suiviEI: true,
     },
-  }) as Awaited<ReturnType<typeof prisma.accompagnement.findFirst>> & {
-    suiviEI: { id: number; cvs: { id: number; nom: string }[] } | null
-  } | null
+  })
 
   if (!accompagnement) notFound()
 
-  const isTS  = session.user.role === 'TRAVAILLEUR_SOCIAL'
-  const estEI = !!accompagnement.suiviEI
+  const isTS          = session.user.role === 'TRAVAILLEUR_SOCIAL'
+  const estEI         = !!accompagnement.suiviEI
+  const estBrouillon  = accompagnement.estBrouillon
 
   // Prescripteurs et référents ASID existants (pour les comboboxes)
   const suivis = accompagnement.suiviASID
@@ -132,10 +126,10 @@ export default async function FicheAccompagnementPage({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-blue-700">
-                {accompagnement.person.nom.toUpperCase()} {accompagnement.person.prenom}
+                {accompagnement.person.nom.toUpperCase()} {capitaliserPrenom(accompagnement.person.prenom)}
               </h1>
               {estEI ? (
-                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">EI</span>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">Dossier individuel</span>
               ) : (
                 <>
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">FSE+</span>
@@ -151,6 +145,14 @@ export default async function FicheAccompagnementPage({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {!estEI && (
+              <BoutonExportPDFAccompagnement
+                id={id}
+                type={accompagnement.suiviASID ? 'asid' : 'fse'}
+                nom={accompagnement.person.nom}
+                prenom={accompagnement.person.prenom}
+              />
+            )}
             {isTS && <BoutonEnregistrerGlobal />}
             {isTS && <BoutonSupprimerAccompagnement id={id} redirectApres="/accompagnement" />}
             <Link href="/accompagnement">
@@ -159,6 +161,23 @@ export default async function FicheAccompagnementPage({
           </div>
         </div>
       </div>
+
+      {/* ── Bandeau brouillon ─────────────────────────────── */}
+      {estBrouillon && (
+        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-medium text-amber-800">
+            Cet accompagnement a été créé automatiquement depuis un import Excel et n&apos;est pas encore finalisé.
+          </p>
+          <p className="mt-1 text-sm text-amber-700">
+            Veuillez compléter les informations (prescripteur, date d&apos;entrée, ressources…) puis cliquer sur le bouton ci-dessous.
+          </p>
+          {isTS && (
+            <div className="mt-3">
+              <BoutonFinaliserAccompagnement id={id} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-6 items-start">
       <div className="flex-1 min-w-0">
@@ -186,7 +205,7 @@ export default async function FicheAccompagnementPage({
               />
             ) : (
               <>
-                <SectionTitre>Accompagnement espace d&apos;insertion</SectionTitre>
+                <SectionTitre>Dossier individuel</SectionTitre>
                 <div className="text-sm space-y-1">
                   <div className="flex gap-2 py-0.5">
                     <span className="w-40 shrink-0 text-muted-foreground">{"Date d'entrée"}</span>
@@ -200,16 +219,6 @@ export default async function FicheAccompagnementPage({
               </>
             )}
 
-            {/* CV / LM EI */}
-            {isTS && accompagnement.suiviEI && (
-              <>
-                <SectionTitre>CV - Lettre(s) de motivation</SectionTitre>
-                <SectionCVLMEI
-                  accompagnementId={id}
-                  cvs={accompagnement.suiviEI.cvs}
-                />
-              </>
-            )}
           </>
         ) : (
           /* ── Layout FSE / ASID ───────────────────────────── */
@@ -279,15 +288,17 @@ export default async function FicheAccompagnementPage({
               />
             )}
 
-            {isTS && accompagnement.suiviASID && (
-              <>
-                <SectionTitre>CV - Lettre(s) de motivation</SectionTitre>
-                <SectionCVLM
-                  accompagnementId={id}
-                  cvs={accompagnement.suiviASID.cvs}
-                />
-              </>
-            )}
+          </>
+        )}
+
+        {/* ── CV - Lettre(s) de motivation ─────────────────── */}
+        {isTS && (
+          <>
+            <SectionTitre>CV - Lettre(s) de motivation</SectionTitre>
+            <SectionCVLM
+              accompagnementId={id}
+              cvs={accompagnement.person.cvs}
+            />
           </>
         )}
 
@@ -368,7 +379,7 @@ export default async function FicheAccompagnementPage({
       </div>{/* fin colonne principale */}
 
       <aside className="w-80 shrink-0 sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto border-l pl-6">
-        <h2 className="mb-3 mt-2 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="sticky top-0 z-10 mb-3 mt-2 border-b bg-background pb-1 pt-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Démarches
         </h2>
         <SectionDemarches

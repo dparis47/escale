@@ -67,7 +67,7 @@ export function SectionAccompagnementEI({
         className="mb-3 mt-6 flex cursor-pointer select-none items-center gap-2 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
       >
         <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${ouvert ? 'rotate-90' : ''}`} />
-        Accompagnement espace d&apos;insertion
+        Dossier individuel
       </h2>
       {ouvert && (
         <div className="space-y-3">

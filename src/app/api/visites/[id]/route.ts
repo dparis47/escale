@@ -83,6 +83,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         `UPDATE "Demarches" SET "atelierNoms" = $1::text[] WHERE id = $2`,
         atelierNoms, dem.id,
       )
+
+      // Auto-créer une ActionCollective pour chaque nouvel atelier saisi
+      const themeFallback = await prisma.themeAtelierRef.findFirst({
+        where: { deletedAt: null },
+        orderBy: { id: 'asc' },
+      })
+      if (themeFallback) {
+        for (const nom of atelierNoms) {
+          const existe = await prisma.actionCollective.findFirst({
+            where: { themeAutre: nom, deletedAt: null },
+          })
+          if (!existe) {
+            await prisma.actionCollective.create({
+              data: { themeId: themeFallback.id, themeAutre: nom, date: new Date() },
+            })
+          }
+        }
+      }
     }
   }
 

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { SessionProvider } from 'next-auth/react'
 import { auth } from '@/auth'
 import { Header } from '@/components/layout/header'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -20,8 +21,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="fr">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider session={session}>
-          {session && <Header user={{ name: session.user.name, role: session.user.role }} />}
-          {children}
+          <TooltipProvider delayDuration={200}>
+            {session && <Header user={{ name: session.user.name, role: session.user.role }} />}
+            {children}
+          </TooltipProvider>
         </SessionProvider>
       </body>
     </html>

@@ -2,11 +2,14 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { formaterDateCourte } from '@/lib/dates'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import type { PersonneAvecStats } from '@/types/persons'
+import { Eye, Pencil, FilePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { BoutonSupprimerPersonne } from '@/components/personnes/bouton-supprimer-personne'
+import { BoutonExportPersonnes } from '@/components/personnes/bouton-export-personnes'
+import { BarreRechercheAuto } from '@/components/ui/barre-recherche-auto'
 
 const PAR_PAGE = 50
 
@@ -24,7 +27,7 @@ export default async function ListePersonnesPage({
 
   const where = {
     deletedAt: null,
-    ...(q.length >= 2
+    ...(q.length >= 3
       ? {
           OR: [
             { nom:    { contains: q, mode: 'insensitive' as const } },
@@ -67,7 +70,10 @@ export default async function ListePersonnesPage({
     <main className="container mx-auto px-4 py-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Dossiers individuels</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Dossiers individuels</h1>
+            <BoutonExportPersonnes q={q || undefined} />
+          </div>
           <p className="text-sm text-muted-foreground">
             {total} personne{total > 1 ? 's' : ''} accueillies
           </p>
@@ -80,22 +86,13 @@ export default async function ListePersonnesPage({
       </div>
 
       {/* Barre de recherche */}
-      <form method="GET" className="mb-6">
-        <div className="flex max-w-sm gap-2">
-          <Input
-            name="q"
-            defaultValue={q}
-            placeholder="Rechercher par nom ou prénom…"
-            autoComplete="off"
-          />
-          <Button type="submit" variant="outline">Rechercher</Button>
-          {q && (
-            <Link href="/personnes">
-              <Button variant="ghost">✕</Button>
-            </Link>
-          )}
-        </div>
-      </form>
+      <div className="mb-6">
+        <BarreRechercheAuto
+          placeholder="Rechercher par nom ou prénom…"
+          defaultValue={q}
+          baseUrl="/personnes"
+        />
+      </div>
 
       {/* Table */}
       {personnes.length === 0 ? (
@@ -119,15 +116,10 @@ export default async function ListePersonnesPage({
             <tbody>
               {personnes.map((p) => (
                 <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className="px-3 py-2 font-medium">{p.nom}</td>
-                  <td className="px-3 py-2">{p.prenom || '—'}</td>
+                  <td className="px-3 py-2 font-medium">{p.nom.toUpperCase()}</td>
+                  <td className="px-3 py-2">{p.prenom ? capitaliserPrenom(p.prenom) : '—'}</td>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1">
-                      {p.accompagnements.some((a) => a.suiviEI !== null) && (
-                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 border border-orange-200">
-                          EI
-                        </span>
-                      )}
                       {p.accompagnements.some((a) => a.suiviEI === null) && (
                         <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 border border-green-200">
                           FSE+
@@ -152,16 +144,34 @@ export default async function ListePersonnesPage({
                     {p.dateActualisation ? formaterDateCourte(p.dateActualisation) : '—'}
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link href={`/personnes/${p.id}`}>
-                        <Button variant="outline" size="sm">Voir</Button>
-                      </Link>
+                    <div className="flex items-center justify-end gap-0.5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href={`/personnes/${p.id}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent>Voir</TooltipContent>
+                      </Tooltip>
                       {peutModifier && (
-                        <Link href={`/personnes/${p.id}/modifier`}>
-                          <Button variant="outline" size="sm" className="w-28">
-                            {!p.estInscrit ? 'Créer le dossier' : 'Modifier'}
-                          </Button>
-                        </Link>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link href={`/personnes/${p.id}/modifier`}>
+                              {!p.estInscrit ? (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600 hover:bg-purple-50 hover:text-purple-600">
+                                  <FilePlus className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:bg-amber-50 hover:text-amber-600">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent>{!p.estInscrit ? 'Créer le dossier' : 'Modifier'}</TooltipContent>
+                        </Tooltip>
                       )}
                       <BoutonSupprimerPersonne id={p.id} />
                     </div>

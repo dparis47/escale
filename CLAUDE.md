@@ -29,6 +29,7 @@ Le fichier `docs/base-de-donnees.md` documente toutes les tables et leurs champs
 
 ## Règles de développement
 
+- **Toute modification de `prisma/schema.prisma` doit passer par le mode plan** avant toute exécution. Valider le modèle, les nommages, les relations et les fichiers impactés, puis obtenir la validation de l'utilisateur avant d'écrire la migration ou d'exécuter quoi que ce soit d'irréversible.
 - **Soft delete obligatoire** sur toutes les entités : champ `deletedAt DateTime?` — `null` = actif, date = supprimé. Jamais de `DELETE` physique.
 - TypeScript strict — `any` interdit
 - ESLint + Prettier obligatoires

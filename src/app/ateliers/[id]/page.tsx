@@ -2,11 +2,9 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { formaterDateCourte } from '@/lib/dates'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { Button } from '@/components/ui/button'
 import { SectionParticipants } from '@/components/ateliers/section-participants'
-import { THEMES_ATELIER_FR } from '@/schemas/atelier'
-import type { ThemeAtelier } from '@prisma/client'
 
 export default async function DetailAtelierPage({
   params,
@@ -24,6 +22,8 @@ export default async function DetailAtelierPage({
   const atelier = await prisma.actionCollective.findFirst({
     where: { id, deletedAt: null },
     include: {
+      themeRef: { include: { categorie: true } },
+      prestataire: true,
       participants: {
         where: { deletedAt: null },
         include: {
@@ -44,8 +44,11 @@ export default async function DetailAtelierPage({
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-blue-700">
-            {THEMES_ATELIER_FR[atelier.theme as ThemeAtelier]}
+            {atelier.themeRef.nom}
           </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {atelier.themeRef.categorie.nom}
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {formaterDateCourte(atelier.date)}
           </p>
@@ -73,7 +76,7 @@ export default async function DetailAtelierPage({
         {atelier.prestataire && (
           <div className="flex gap-2">
             <span className="w-32 shrink-0 text-muted-foreground">Prestataire</span>
-            <span>{atelier.prestataire}</span>
+            <span>{atelier.prestataire.nom}</span>
           </div>
         )}
         {atelier.themeAutre && (
@@ -111,7 +114,7 @@ export default async function DetailAtelierPage({
           <ul className="divide-y rounded-md border">
             {atelier.participants.map((p) => (
               <li key={p.id} className="px-3 py-2 text-sm font-medium">
-                {p.person.nom.toUpperCase()} {p.person.prenom}
+                {p.person.nom.toUpperCase()} {capitaliserPrenom(p.person.prenom)}
               </li>
             ))}
           </ul>

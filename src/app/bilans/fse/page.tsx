@@ -143,12 +143,12 @@ export default async function BilanFSEPage({
             <Link href="/bilans" className="hover:underline">Bilans</Link>
             {' / '}FSE+
           </div>
-          <h1 className="text-2xl font-bold">Bilan FSE+ — {annee}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Bilan FSE+ — {annee}</h1>
+            <BoutonExport type="fse" annee={annee} />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
-          <BoutonExport type="fse" annee={annee} />
-        </div>
+        <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
       </div>
 
       {/* Synthèse */}

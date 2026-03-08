@@ -1,4 +1,4 @@
-import { PrismaClient, Role, Genre, OrientePar, Ressource, TypeContrat, ThemeAtelier, SujetEntretien } from '@prisma/client'
+import { PrismaClient, Role, Genre, OrientePar, Ressource, TypeContrat, SujetEntretien } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -132,7 +132,6 @@ async function main() {
     update: {},
     create: {
       personId: personne2.id,
-      referentId: ts.id,
       dateEntree: new Date('2024-01-15'),
       ressourceARE: true,
       demarches: {
@@ -168,11 +167,16 @@ async function main() {
   })
 
   // ── Action collective ─────────────────────────────────────
+  // Chercher le thème "Cours d'Informatique" créé par la migration
+  const themeInfo = await prisma.themeAtelierRef.findFirst({
+    where: { nom: "Cours d'Informatique", deletedAt: null },
+  })
+
   const atelier = await prisma.actionCollective.upsert({
     where: { id: 1 },
     update: {},
     create: {
-      theme: ThemeAtelier.COURS_INFORMATIQUE,
+      themeId: themeInfo?.id ?? 1,
       lieu: "L'Escale",
       date: new Date('2024-02-20'),
       notes: 'Initiation à la bureautique',

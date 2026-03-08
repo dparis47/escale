@@ -14,9 +14,8 @@
 | `OrientePar` | FRANCE_TRAVAIL, CMS, MAIRIE, CONNAISSANCE, CMPA, MAISON_DES_FAMILLES | Origine de l'orientation vers L'Escale |
 | `Ressource` | ARE, ASS, RSA, AAH, INVALIDITE, IJ, ASI, SALAIRE, CONJOINT, SANS_RESSOURCE | Type de ressource financière |
 | `TypeContrat` | CDI, CDD, CDDI, INTERIM | Type de contrat de travail |
-| `ThemeAtelier` | COURS_INFORMATIQUE, CINEMA, SOCIO_ESTHETIQUE, RANDONNEE, SPORT, PISCINE, BUDGET, SANTE_ENVIRONNEMENT, CUISINE, CUISINE_ANTI_GASPI, MEDIATION_EQUINE, ATELIER_CREATIF, CULTUREL, NOEL, PROJET_CINEMA, AUTRE | Thème d'une action collective |
-| `SujetEntretien` | SANTE, MOBILITE, EMPLOI, LOGEMENT, ATELIER_REDYNAMISATION, PARENTALITE | Sujet abordé lors d'un entretien (ASID ou FSE) |
 | `NiveauFormation` | PAS_SCOLARISE, PRIMAIRE_3EME, CAP_BAC, DEUG_PLUS | Niveau de formation d'une personne en suivi FSE+ |
+| `SujetEntretien` | SANTE, MOBILITE, EMPLOI, LOGEMENT, ATELIER_REDYNAMISATION, PARENTALITE | Sujet abordé lors d'un entretien (accompagnement) |
 
 ---
 
@@ -39,8 +38,9 @@ Comptes de connexion des agents de L'Escale (accueil, travailleur social, direct
 
 ---
 
-### `Person` — Fiches d'inscription
-Fiche individuelle de chaque personne accueillie à L'Escale. Peut être une fiche complète (`estInscrit = true`) ou une fiche auto-créée pour une visite libre ou anonyme (`estInscrit = false`).
+### `Person` — Personne accueillie à L'Escale
+Chaque personne accueillie à L'Escale.
+Sert de dossier individuel si le formulaire de la personne est complet (`estInscrit = true`) ou un dossier auto-créé pour une visite libre ou anonyme (`estInscrit = false`).
 
 | Champ | Type | Description |
 |---|---|---|
@@ -76,6 +76,7 @@ Fiche individuelle de chaque personne accueillie à L'Escale. Peut être une fic
 | `ressources` | Ressource[] | Sources de revenus actuelles |
 | `orientePar` | OrientePar? | Qui a orienté la personne vers L'Escale |
 | `enASID` | Boolean | Indique si la personne est ou a été en suivi ASID |
+| `cvs` | Cv[] | CV et lettres de motivation (tous accompagnements) |
 | `createdAt` | DateTime | Date de création de la fiche |
 | `updatedAt` | DateTime | Date de dernière modification |
 | `deletedAt` | DateTime? | Soft delete — null = actif |
@@ -91,6 +92,7 @@ Enregistrement de chaque passage à l'accueil. Une ligne par personne par jour. 
 | `date` | DateTime (Date) | Date de la visite |
 | `personId` | Int | Lien vers la fiche Person (toujours non-null) |
 | `orienteParFT` | Boolean | Personne orientée par France Travail pour cette visite |
+| `partenaires` | String[] | Partenaires présents lors de cette visite (clés libres) |
 | `commentaire` | String? | Commentaire libre sur la visite |
 | `fse` | Boolean | Marqué comme visite FSE (comptage annuel, une fois par personne par an) |
 | `saisieParId` | Int? | Utilisateur ayant saisi la visite |
@@ -101,15 +103,14 @@ Enregistrement de chaque passage à l'accueil. Une ligne par personne par jour. 
 
 ---
 
-### `Demarches` — Démarches unifiées (Visit, FSE, ASID)
-Table unifiée regroupant les démarches pour les trois contextes : visite accueil, suivi FSE+ et suivi ASID. Un seul des trois liens (`visitId`, `fseId`, `asidId`) est non-null selon le contexte. Relation 1-1 dans chaque cas.
+### `Demarches` — Démarches unifiées (Visit, Accompagnement)
+Table unifiée regroupant les démarches pour deux contextes : visite accueil et accompagnement formel (FSE/ASID/DI). Un seul des deux liens (`visitId`, `accompagnementId`) est non-null selon le contexte. Relation 1-1 dans chaque cas.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
 | `visitId` | Int? (unique) | Lien vers la visite (contexte accueil) |
-| `fseId` | Int? (unique) | Lien vers le suivi FSE+ |
-| `asidId` | Int? (unique) | Lien vers le suivi ASID |
+| `accompagnementId` | Int? (unique) | Lien vers l'accompagnement formel (FSE / ASID / DI) |
 | **Accès aux droits** | | |
 | `droitsCafMsa` | Boolean | Démarche CAF / MSA |
 | **Emploi** | | |
@@ -201,62 +202,80 @@ Table unifiée regroupant les démarches pour les trois contextes : visite accue
 | `parentaliteAutreInput` | String? | Parentalité autre (champ libre) |
 | **Ateliers de redynamisation** | | |
 | `atelierParticipation` | Boolean | Participation à un atelier |
-| `atelierNom` | String? | Nom de l'atelier |
+| `atelierNoms` | String[] | Noms des ateliers auxquels la personne a participé |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
 
 ---
 
-### `ResultatASID` — Résultats contrats du suivi ASID
-Indicateurs de contrats de travail obtenus dans le cadre d'un suivi ASID. Relation 1-1 avec `AccompagnementASID`, créé automatiquement à la création de l'ASID.
-
-| Champ | Type | Description |
-|---|---|---|
-| `id` | Int (PK) | Identifiant unique |
-| `accompagnementId` | Int (unique) | Lien vers le suivi ASID (relation 1-1) |
-| `contratCDI` | Boolean | CDI obtenu |
-| `contratCDD` | Boolean | CDD obtenu |
-| `contratInterim` | Boolean | Intérim obtenu |
-| `contratIAE` | Boolean | Contrat IAE obtenu |
-| `createdAt` | DateTime | Date de création |
-| `updatedAt` | DateTime | Date de dernière modification |
-
----
-
-### `AccompagnementFSE` — Suivi FSE+ (Fond Social Européen)
-Accompagnement formel d'une personne dans le cadre du FSE+. Plusieurs FSE possibles par personne. Tout ASID est aussi un FSE. Un FSE peut exister sans ASID (suivi FSE+ seul). Les démarches effectuées sont dans la table `Demarches` liée via `fseId`.
+### `ContratTravail` — Contrats de travail
+Historique des contrats de travail obtenus par une personne. Plusieurs contrats possibles par personne. Visible sur la fiche accompagnement (section "Contrat(s) de travail") et dans le bilan France Travail.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
 | `personId` | Int | Lien vers la fiche Person |
-| `referentId` | Int? | Référent (utilisateur de l'application) |
-| `dateEntree` | DateTime (Date) | Date d'entrée dans le FSE+ |
-| `dateSortie` | DateTime? (Date) | Date de sortie du FSE+ |
+| `type` | TypeContrat | Type de contrat (CDI, CDD, CDDI, INTERIM) |
+| `dateDebut` | DateTime (Date) | Date de début du contrat |
+| `dateFin` | DateTime? (Date) | Date de fin (null si CDI ou en cours) |
+| `employeur` | String? | Nom de l'employeur |
+| `ville` | String? | Ville du poste |
+| `poste` | String? | Intitulé du poste |
+| `createdAt` | DateTime | Date de création |
+| `updatedAt` | DateTime | Date de dernière modification |
+| `deletedAt` | DateTime? | Soft delete — null = actif |
+
+---
+
+### `Accompagnement` — Accompagnement formel (FSE+, ASID) ou Dossier individuel (DI)
+Coquille commune pour tous les accompagnements. Porte les données partagées : personne, dates, ressources à l'entrée, situation avant, niveau de formation, logement, observation. Un `SuiviASID` ou un `SuiviDI` (dossier individuel) peut y être rattaché via relation 1-1. Un dossier individuel est auto-créé à la première visite de chaque personne. Les démarches sont dans `Demarches` (via `accompagnementId`). Plusieurs accompagnements possibles par personne.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `personId` | Int | Lien vers la fiche Person |
+| `dateEntree` | DateTime (Date) | Date d'entrée dans l'accompagnement |
+| `dateSortie` | DateTime? (Date) | Date de sortie de l'accompagnement |
 | `ressourceRSA` | Boolean | Bénéficiait du RSA à l'entrée |
 | `ressourceASS` | Boolean | Bénéficiait de l'ASS à l'entrée |
 | `ressourceARE` | Boolean | Bénéficiait de l'ARE à l'entrée |
 | `ressourceAAH` | Boolean | Bénéficiait de l'AAH à l'entrée |
 | `ressourceASI` | Boolean | Bénéficiait de l'ASI à l'entrée |
 | `ressourceSansRessources` | Boolean | Sans ressources à l'entrée |
-| `avantOccupeEmploi` | Boolean | Occupait un emploi avant l'entrée dans le FSE+ |
-| `avantIndependant` | Boolean | Travailleur indépendant avant le FSE+ (si avantOccupeEmploi) |
-| `avantCDI` | Boolean | Occupait un CDI avant le FSE+ (si avantOccupeEmploi) |
-| `avantCDDPlus6Mois` | Boolean | Occupait un CDD > 6 mois avant le FSE+ (si avantOccupeEmploi) |
-| `avantCDDMoins6Mois` | Boolean | Occupait un CDD ≤ 6 mois avant le FSE+ (si avantOccupeEmploi) |
-| `avantInterim` | Boolean | En intérim avant le FSE+ (si avantOccupeEmploi) |
-| `avantIAE` | Boolean | En IAE avant le FSE+ (si avantOccupeEmploi) |
-| `avantFormationPro` | Boolean | En formation professionnelle avant le FSE+ (si !avantOccupeEmploi) |
-| `avantEnRechercheEmploi` | Boolean | En recherche d'emploi avant le FSE+ (si !avantOccupeEmploi) |
-| `avantNeCherchePasEmploi` | Boolean | Ne cherchait pas d'emploi immédiat avant le FSE+ (si !avantOccupeEmploi) |
+| `avantOccupeEmploi` | Boolean | Occupait un emploi avant l'entrée |
+| `avantCDI` | Boolean | CDI avant l'entrée (si avantOccupeEmploi) |
+| `avantCDDPlus6Mois` | Boolean | CDD > 6 mois avant l'entrée (si avantOccupeEmploi) |
+| `avantCDDMoins6Mois` | Boolean | CDD ≤ 6 mois avant l'entrée (si avantOccupeEmploi) |
+| `avantInterim` | Boolean | Intérim avant l'entrée (si avantOccupeEmploi) |
+| `avantIAE` | Boolean | IAE avant l'entrée (si avantOccupeEmploi) |
+| `avantIndependant` | Boolean | Travailleur indépendant avant l'entrée (si avantOccupeEmploi) |
+| `avantFormationPro` | Boolean | En formation professionnelle avant l'entrée (si !avantOccupeEmploi) |
+| `avantEnRechercheEmploi` | Boolean | En recherche d'emploi avant l'entrée (si !avantOccupeEmploi) |
+| `avantNeCherchePasEmploi` | Boolean | Ne cherchait pas d'emploi avant l'entrée (si !avantOccupeEmploi) |
 | `niveauFormation` | NiveauFormation? | Niveau de formation à l'entrée |
 | `reconnaissanceHandicap` | Boolean | Reconnaissance de la qualité de travailleur handicapé (RQTH) |
 | `logementSDF` | Boolean | Sans domicile fixe à l'entrée |
 | `logementExclusion` | Boolean | En situation d'exclusion du logement à l'entrée |
+| `estBrouillon` | Boolean | `true` = créé automatiquement (import Excel) — à compléter par un travailleur social |
+| `observation` | String? | Observations libres |
+| `createdAt` | DateTime | Date de création |
+| `updatedAt` | DateTime | Date de dernière modification |
+| `deletedAt` | DateTime? | Soft delete — null = actif |
+
+---
+
+### `AccompagnementSortie` — Situation de sortie FSE+
+Indicateurs de situation à la sortie d'un accompagnement formel. Relation 1-1 avec `Accompagnement`. Inclut également les informations de formation si la sortie est une entrée en formation.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `accompagnementId` | Int (unique) | Lien vers l'accompagnement (relation 1-1) |
 | `sortieCDDMoins6Mois` | Boolean | Sorti en CDD < 6 mois |
 | `sortieCDDPlus6Mois` | Boolean | Sorti en CDD ≥ 6 mois |
 | `sortieCDI` | Boolean | Sorti en CDI |
 | `sortieIAE` | Boolean | Sorti en IAE |
+| `sortieInterim` | Boolean | Sorti en intérim |
 | `sortieIndependant` | Boolean | Sorti comme indépendant |
 | `sortieMaintienEmploi` | Boolean | Maintien en emploi |
 | `sortieRechercheEmploi` | Boolean | Toujours en recherche d'emploi à la sortie |
@@ -268,24 +287,20 @@ Accompagnement formel d'une personne dans le cadre du FSE+. Plusieurs FSE possib
 | `formationOrganisme` | String? | Organisme de formation |
 | `formationVille` | String? | Ville de la formation |
 | `formationDuree` | String? | Durée de la formation |
-| `observation` | String? | Observations libres |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
-| `deletedAt` | DateTime? | Soft delete — null = actif |
 
 ---
 
-### `AccompagnementASID` — Suivi ASID
-Accompagnement socio-professionnel individuel et durable. Toujours lié à un FSE. Prescripteur = toujours un CMS. Les démarches sont dans `Demarches` (via `asidId`) et les indicateurs contrats dans `ResultatASID`.
+### `SuiviASID` — Données spécifiques au suivi ASID
+Données propres au suivi ASID (Accompagnement Socio-professionnel Individuel et Durable), rattaché à un `Accompagnement` via relation 1-1. Prescripteur = toujours un CMS. Porte les indicateurs annuels et les prescriptions.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
-| `personId` | Int | Lien vers la fiche Person |
-| `fseId` | Int (unique) | Lien vers le FSE associé (relation 1-1) |
-| `referentId` | Int? | Référent parmi les utilisateurs |
-| `referentNom` | String? | Nom libre du référent (si non utilisateur) |
-| `referentPrenom` | String? | Prénom libre du référent |
+| `accompagnementId` | Int (unique) | Lien vers l'accompagnement (relation 1-1) |
+| `referentNom` | String? | Nom du référent RSA (libre texte) |
+| `referentPrenom` | String? | Prénom du référent RSA (libre texte) |
 | `prescripteurNom` | String? | Nom du prescripteur (CMS) |
 | `prescripteurPrenom` | String? | Prénom du prescripteur (CMS) |
 | `communeResidence` | String? | Commune de résidence de la personne |
@@ -308,14 +323,54 @@ Accompagnement socio-professionnel individuel et durable. Toujours lié à un FS
 
 ---
 
-### `Entretien` — Entretiens individuels (ASID ou FSE)
-Rendez-vous individuels réalisés dans le cadre d'un suivi ASID ou FSE+. Un seul de `asidId` ou `fseId` est non-null.
+### `FichePrescriptionASID` — Fiches de prescription jointes à un suivi ASID
+Documents PDF de prescription rattachés à un suivi ASID. Plusieurs possibles par ASID. Le champ `periode` indique à quelle étape du suivi la prescription correspond.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
-| `asidId` | Int? | Lien vers le suivi ASID (null si entretien FSE) |
-| `fseId` | Int? | Lien vers le suivi FSE+ (null si entretien ASID) |
+| `accompagnementId` | Int | Lien vers le suivi ASID |
+| `nom` | String | Nom original du fichier |
+| `periode` | String? | Étape du suivi : `"ENTREE"`, `"RENOUVELLEMENT_1"` ou `"RENOUVELLEMENT_2"` |
+| `contenu` | Bytes | Contenu du PDF stocké en base |
+| `createdAt` | DateTime | Date de création |
+
+---
+
+### `Cv` — CV et lettres de motivation
+Documents (CV, lettre de motivation) rattachés à une personne. Commun à tous les types d'accompagnement (ASID, DI, FSE+). Plusieurs possibles par personne.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `personId` | Int | Lien vers la fiche Person |
+| `nom` | String | Nom original du fichier |
+| `contenu` | Bytes | Contenu du fichier stocké en base (PDF ou Word) |
+| `createdAt` | DateTime | Date de création |
+
+---
+
+### `SuiviDI` — Dossier individuel (DI, anciennement Espace d'Insertion)
+Marqueur de dossier individuel, rattaché à un `Accompagnement` via relation 1-1. Auto-créé à la première visite de chaque personne. Plus léger que le FSE : pas de ressources à l'entrée ni de situation avant/sortie. Porte uniquement une observation.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `accompagnementId` | Int (unique) | Lien vers l'accompagnement (relation 1-1) |
+| `observation` | String? | Observations libres |
+| `createdAt` | DateTime | Date de création |
+| `updatedAt` | DateTime | Date de dernière modification |
+| `deletedAt` | DateTime? | Soft delete — null = actif |
+
+---
+
+### `Entretien` — Entretiens individuels
+Rendez-vous individuels réalisés dans le cadre d'un accompagnement formel (FSE, ASID ou DI).
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `accompagnementId` | Int? | Lien vers l'accompagnement |
 | `date` | DateTime (Date) | Date de l'entretien |
 | `sujets` | SujetEntretien[] | Sujets abordés lors de l'entretien |
 | `notes` | String? | Notes libres sur l'entretien |
@@ -325,60 +380,58 @@ Rendez-vous individuels réalisés dans le cadre d'un suivi ASID ou FSE+. Un seu
 
 ---
 
-### `ContratTravail` — Contrats de travail
-Historique des contrats de travail obtenus par une personne. Plusieurs contrats possibles par personne. Visible sur la fiche ASID (section "Contrat(s) de travail") et dans le bilan France Travail.
+### `CategorieAtelier` — Catégories d'ateliers
+Catégories regroupant les thèmes d'actions collectives. Gérables dynamiquement depuis l'interface (ajout, renommage, changement de couleur).
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
-| `personId` | Int | Lien vers la fiche Person |
-| `type` | TypeContrat | Type de contrat (CDI, CDD, CDDI, INTERIM) |
-| `dateDebut` | DateTime (Date) | Date de début du contrat |
-| `dateFin` | DateTime? (Date) | Date de fin (null si CDI ou en cours) |
-| `employeur` | String? | Nom de l'employeur |
-| `ville` | String? | Ville du poste |
-| `poste` | String? | Intitulé du poste |
+| `nom` | String (unique) | Nom de la catégorie (ex : « santé - bien-être ») |
+| `couleur` | String | Clé couleur Tailwind (pink, green, red, amber, indigo, blue…) |
+| `ordre` | Int | Ordre d'affichage |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
 | `deletedAt` | DateTime? | Soft delete — null = actif |
 
 ---
 
-### `FichePrescriptionASID` — Fiches de prescription jointes à un suivi ASID
-Documents PDF de prescription rattachés à un accompagnement ASID. Plusieurs possibles par ASID.
+### `ThemeAtelierRef` — Thèmes d'ateliers (référentiel)
+Thèmes d'actions collectives, rattachés à une catégorie. Gérables dynamiquement depuis l'interface. Contrainte d'unicité sur `(categorieId, nom)`.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
-| `accompagnementId` | Int | Lien vers le suivi ASID |
-| `nom` | String | Nom original du fichier |
-| `contenu` | Bytes | Contenu du PDF stocké en base |
+| `nom` | String | Nom du thème (ex : « socio-esthétique ») |
+| `categorieId` | Int (FK → CategorieAtelier) | Catégorie parente |
+| `ordre` | Int | Ordre d'affichage au sein de la catégorie |
 | `createdAt` | DateTime | Date de création |
+| `updatedAt` | DateTime | Date de dernière modification |
+| `deletedAt` | DateTime? | Soft delete — null = actif |
 
 ---
 
-### `CvASID` — CV et lettres de motivation d'un suivi ASID
-Documents (CV, lettre de motivation) rattachés à un accompagnement ASID. Plusieurs possibles par ASID.
+### `Prestataire` — Prestataires d'ateliers
+Intervenants ou prestataires pouvant animer des actions collectives. Gérables dynamiquement depuis le formulaire d'atelier.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
-| `accompagnementId` | Int | Lien vers le suivi ASID |
-| `nom` | String | Nom original du fichier |
-| `contenu` | Bytes | Contenu du fichier stocké en base |
+| `nom` | String (unique) | Nom du prestataire |
 | `createdAt` | DateTime | Date de création |
+| `updatedAt` | DateTime | Date de dernière modification |
+| `deletedAt` | DateTime? | Soft delete — null = actif |
 
 ---
 
 ### `ActionCollective` — Actions collectives (ateliers)
-Séances d'ateliers collectifs organisés par L'Escale.
+Séances d'ateliers collectifs organisés par L'Escale. Le thème est une référence vers `ThemeAtelierRef` (lui-même rattaché à une `CategorieAtelier`). Le prestataire est une référence optionnelle vers `Prestataire`.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
-| `theme` | ThemeAtelier | Thème de l'atelier |
-| `themeAutre` | String? | Précision si thème = AUTRE |
-| `prestataire` | String? | Nom du prestataire ou intervenant |
+| `themeId` | Int (FK → ThemeAtelierRef) | Thème de l'atelier |
+| `themeAutre` | String? | Titre de la séance (ex : titre du film pour « cinéma ») |
+| `prestataireId` | Int? (FK → Prestataire) | Prestataire ou intervenant |
 | `lieu` | String? | Lieu de l'atelier |
 | `date` | DateTime (Date) | Date de la séance |
 | `notes` | String? | Notes libres |
@@ -402,13 +455,42 @@ Lien entre une personne (avec fiche obligatoire) et une action collective.
 ---
 
 ### `FichierEmargement` — Feuilles d'émargement des ateliers
-Fichiers d'émargement (PDF ou autre) associés à un thème d'atelier.
+Fichiers d'émargement (PDF) associés à une séance d'atelier (ActionCollective).
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
-| `theme` | ThemeAtelier | Thème d'atelier concerné |
+| `actionCollectiveId` | Int (FK → ActionCollective) | Séance d'atelier concernée |
 | `nom` | String | Nom du fichier |
 | `contenu` | Bytes | Contenu du fichier stocké en base |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
+
+---
+
+### `CompteurPartenaire` — Compteurs journaliers par partenaire
+Compteur manuel du nombre de personnes reçues par partenaire pour une date donnée (usage statistique). Contrainte d'unicité sur `(date, partenaire)`.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `date` | DateTime (Date) | Date concernée |
+| `partenaire` | String | Clé du partenaire |
+| `count` | Int | Nombre de personnes reçues |
+| `createdAt` | DateTime | Date de création |
+| `updatedAt` | DateTime | Date de dernière modification |
+
+---
+
+### `PersonnePartenaire` — Personnes reçues par partenaire
+Liste nominative (ou anonyme) des personnes reçues par un partenaire donné. Une entrée par personne par date par partenaire. Les entrées anonymes ont `nom = "(anonyme)"`. Contrainte d'index sur `(date, partenaire)`.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `date` | DateTime (Date) | Date de la réception |
+| `partenaire` | String | Clé du partenaire |
+| `nom` | String | Nom de la personne, ou `"(anonyme)"` si inconnue |
+| `dateRDV` | DateTime (Date) | Date effective du rendez-vous (peut différer de `date`) |
+| `createdAt` | DateTime | Date de création |
+| `deletedAt` | DateTime? | Soft delete — null = actif |

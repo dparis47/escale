@@ -567,6 +567,83 @@ export function themesAvecFeuilles(
   return result
 }
 
+/** Renvoie tous les noms de champs booléens (feuilles) sous un thème donné. */
+export function champsTheme(themeId: string): string[] {
+  const theme = ARBRE_DEMARCHES.find((t) => t.id === themeId)
+  if (!theme) return []
+  const champs: string[] = []
+  function walk(n: Noeud) {
+    if (n.type === 'feuille') champs.push(n.champ)
+    else if (n.type === 'section') n.enfants.forEach(walk)
+  }
+  theme.enfants.forEach(walk)
+  return champs
+}
+
+/** Renvoie les paires { champ, label } pour toutes les feuilles d'un thème. */
+export function feuillesTheme(themeId: string): { champ: string; label: string }[] {
+  const theme = ARBRE_DEMARCHES.find((t) => t.id === themeId)
+  if (!theme) return []
+  const feuilles: { champ: string; label: string }[] = []
+  function walk(n: Noeud) {
+    if (n.type === 'feuille') feuilles.push({ champ: n.champ, label: n.label })
+    else if (n.type === 'section') n.enfants.forEach(walk)
+  }
+  theme.enfants.forEach(walk)
+  return feuilles
+}
+
+/** Vérifie si un objet démarches correspond au filtre thème et/ou champ précis. */
+export function matchFiltresDemarches(
+  demarches: Record<string, unknown> | null,
+  themeId: string | null,
+  champ: string | null,
+): boolean {
+  if (!themeId && !champ) return true
+  if (!demarches) return false
+  if (champ) return demarches[champ] === true
+  if (themeId) {
+    const champs = champsTheme(themeId)
+    return champs.some((c) => demarches[c] === true)
+  }
+  return true
+}
+
+/** Colonnes d'export/import : une entrée par feuille/texte de l'arbre, préfixée par le thème. */
+export type ColonneExportDemarche = {
+  header: string
+  champ:  string
+  type:   'bool' | 'nombre' | 'texte' | 'tableau'
+}
+
+export function colonnesDemarchesExport(): ColonneExportDemarche[] {
+  const colonnes: ColonneExportDemarche[] = []
+
+  for (const theme of ARBRE_DEMARCHES) {
+    function walk(n: Noeud) {
+      if (n.type === 'feuille') {
+        colonnes.push({ header: `${theme.label} — ${n.label}`, champ: n.champ, type: 'bool' })
+        if (n.champNombre) {
+          colonnes.push({ header: `${theme.label} — ${n.label} (nb)`, champ: n.champNombre, type: 'nombre' })
+        }
+        if (n.champTexte) {
+          colonnes.push({ header: `${theme.label} — ${n.label} (texte)`, champ: n.champTexte, type: 'texte' })
+        }
+        if (n.champTableau) {
+          colonnes.push({ header: `${theme.label} — ${n.label} (liste)`, champ: n.champTableau, type: 'tableau' })
+        }
+      } else if (n.type === 'texte') {
+        colonnes.push({ header: `${theme.label} — ${n.label}`, champ: n.champ, type: 'texte' })
+      } else {
+        n.enfants.forEach(walk)
+      }
+    }
+    theme.enfants.forEach(walk)
+  }
+
+  return colonnes
+}
+
 /** Extrait les champs DemarcheChamps depuis un objet Prisma DemarcheVisite ou DemarcheASID. */
 export function fromPrisma(obj: Record<string, unknown>): DemarcheChamps {
   const bool = (k: string): boolean => obj[k] === true

@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   }
 
   const {
-    dateNaissance, dateInscriptionFT, dateActualisation,
+    dateNaissance, dateInscriptionFT,
     email,
     ...rest
   } = parsed.data
@@ -75,9 +75,17 @@ export async function POST(request: Request) {
       email:             email === '' ? null : (email ?? null),
       dateNaissance:     dateNaissance     ? parseISO(dateNaissance)     : null,
       dateInscriptionFT: dateInscriptionFT ? parseISO(dateInscriptionFT) : null,
-      dateActualisation: dateActualisation ? parseISO(dateActualisation) : null,
+      dateActualisation: new Date(),
     },
   })
+
+  // Auto-création du dossier individuel (Accompagnement + SuiviEI) pour la nouvelle personne
+  const accompDI = await prisma.accompagnement.create({
+    data: { personId: personne.id, dateEntree: new Date() },
+  })
+  await prisma.demarches.create({ data: { accompagnementId: accompDI.id } })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (prisma as any).suiviEI.create({ data: { accompagnementId: accompDI.id } })
 
   return NextResponse.json({ id: personne.id }, { status: 201 })
 }

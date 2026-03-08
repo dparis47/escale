@@ -27,12 +27,7 @@ export default async function ModifierPersonnePage({
   if (!personne) notFound()
 
   return (
-    <main className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">
-          Modifier — {personne.nom} {personne.prenom}
-        </h1>
-      </div>
+    <main className="container mx-auto px-4">
       <FormulairePersonne mode="edition" personne={personne} />
     </main>
   )

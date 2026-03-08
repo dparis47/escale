@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { THEMES_ATELIER_VALUES } from '@/schemas/atelier'
-import type { ThemeAtelier } from '@prisma/client'
 
-// ─── GET : liste des fichiers pour un thème ───────────────────────────────
+// ─── GET : liste des fichiers pour un atelier ────────────────────────────
 export async function GET(request: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
@@ -13,14 +11,14 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const theme = searchParams.get('theme') as ThemeAtelier | null
+  const atelierId = Number(searchParams.get('atelierId'))
 
-  if (!theme || !THEMES_ATELIER_VALUES.includes(theme)) {
-    return NextResponse.json({ erreur: 'Thème invalide' }, { status: 400 })
+  if (!atelierId || isNaN(atelierId)) {
+    return NextResponse.json({ erreur: 'atelierId invalide' }, { status: 400 })
   }
 
   const fichiers = await prisma.fichierEmargement.findMany({
-    where:   { theme },
+    where:   { actionCollectiveId: atelierId },
     select:  { id: true, nom: true },
     orderBy: { createdAt: 'asc' },
   })
@@ -28,7 +26,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ fichiers })
 }
 
-// ─── POST : ajouter un fichier pour un thème ──────────────────────────────
+// ─── POST : ajouter un fichier pour un atelier ───────────────────────────
 export async function POST(request: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
@@ -37,10 +35,19 @@ export async function POST(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const theme = searchParams.get('theme') as ThemeAtelier | null
+  const atelierId = Number(searchParams.get('atelierId'))
 
-  if (!theme || !THEMES_ATELIER_VALUES.includes(theme)) {
-    return NextResponse.json({ erreur: 'Thème invalide' }, { status: 400 })
+  if (!atelierId || isNaN(atelierId)) {
+    return NextResponse.json({ erreur: 'atelierId invalide' }, { status: 400 })
+  }
+
+  // Vérifier que l'atelier existe
+  const atelier = await prisma.actionCollective.findUnique({
+    where: { id: atelierId },
+    select: { id: true, deletedAt: true },
+  })
+  if (!atelier || atelier.deletedAt) {
+    return NextResponse.json({ erreur: 'Atelier introuvable' }, { status: 404 })
   }
 
   let formData: FormData
@@ -59,10 +66,10 @@ export async function POST(request: Request) {
   }
 
   const buffer = Buffer.from(await fichier.arrayBuffer())
-  const nom    = fichier.name || `emargement-${theme.toLowerCase().replace(/_/g, '-')}.pdf`
+  const nom    = fichier.name || `emargement-${atelierId}.pdf`
 
   const created = await prisma.fichierEmargement.create({
-    data:   { theme, nom, contenu: buffer },
+    data:   { actionCollectiveId: atelierId, nom, contenu: buffer },
     select: { id: true, nom: true },
   })
 

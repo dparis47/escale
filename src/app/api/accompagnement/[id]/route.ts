@@ -27,7 +27,6 @@ export async function GET(
     where: { id, deletedAt: null },
     include: {
       person:   { select: { id: true, nom: true, prenom: true, genre: true, dateNaissance: true } },
-      referent: { select: { id: true, nom: true, prenom: true } },
       sortie:   true,
       demarches: true,
       entretiens: {
@@ -37,7 +36,7 @@ export async function GET(
       suiviASID: {
         include: {
           prescriptions: { select: { id: true, nom: true } },
-          cvs:           { select: { id: true, nom: true } },
+
         },
       },
     },
@@ -82,7 +81,6 @@ export async function PATCH(
   }
 
   const {
-    referentId,
     dateEntree, dateSortie,
     ressourceRSA, ressourceASS, ressourceARE, ressourceAAH,
     ressourceASI, ressourceSansRessources,
@@ -91,13 +89,12 @@ export async function PATCH(
     avantEnRechercheEmploi, avantNeCherchePasEmploi,
     niveauFormation, reconnaissanceHandicap,
     logementSDF, logementExclusion,
-    observation,
+    observation, estBrouillon,
   } = parsed.data
 
   const updated = await prisma.accompagnement.update({
     where: { id },
     data: {
-      ...(referentId             !== undefined ? { referentId: referentId ?? null }         : {}),
       ...(dateEntree             !== undefined ? { dateEntree: parseISO(dateEntree) }        : {}),
       ...(dateSortie             !== undefined ? { dateSortie: dateSortie ? parseISO(dateSortie) : null } : {}),
       ...(observation            !== undefined ? { observation }                             : {}),
@@ -121,6 +118,7 @@ export async function PATCH(
       ...(reconnaissanceHandicap !== undefined ? { reconnaissanceHandicap }                  : {}),
       ...(logementSDF            !== undefined ? { logementSDF }                             : {}),
       ...(logementExclusion      !== undefined ? { logementExclusion }                       : {}),
+      ...(estBrouillon           !== undefined ? { estBrouillon }                            : {}),
     },
   })
 

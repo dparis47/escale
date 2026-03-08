@@ -31,13 +31,14 @@ export default async function BilanPage({
     { href: `/bilans/ars?annee=${annee}`,                   titre: 'ARS',                   style: 'border-purple-400 bg-purple-50 text-purple-700' },
     { href: `/bilans/conseil-departemental?annee=${annee}`, titre: 'Conseil Départemental', style: 'border-amber-400  bg-amber-50  text-amber-700' },
     { href: `/bilans/fse?annee=${annee}`,                   titre: 'FSE+',                  style: 'border-rose-400   bg-rose-50   text-rose-700' },
+    { href: `/bilans/asid?annee=${annee}`,                  titre: 'ASID',                  style: 'border-green-400  bg-green-50  text-green-700' },
   ]
 
   return (
     <main className="container mx-auto px-4 py-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Bilans partenaires</h1>
+          <h1 className="text-2xl font-bold text-blue-600">Bilans financeurs</h1>
           <p className="text-sm text-muted-foreground">Données agrégées sur l&apos;année civile</p>
         </div>
         <SelecteurAnnee
@@ -47,7 +48,7 @@ export default async function BilanPage({
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {bilans.map((b) => (
           <Link key={b.href} href={b.href}>
             <div className={`rounded-lg border-2 p-5 shadow-sm transition-shadow hover:shadow-md flex items-center justify-center min-h-[80px] ${b.style}`}>

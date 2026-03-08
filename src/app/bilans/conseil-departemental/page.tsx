@@ -7,8 +7,6 @@ import { parseISO } from '@/lib/dates'
 import { SelecteurAnnee } from '@/components/bilans/selecteur-annee'
 import { BoutonExport } from '@/components/bilans/bouton-export'
 import { Button } from '@/components/ui/button'
-import { THEMES_ATELIER_FR } from '@/schemas/atelier'
-import type { ThemeAtelier } from '@prisma/client'
 
 function trancheAge(dateNaissance: Date | null, annee: number): string {
   if (!dateNaissance) return 'Non renseigné'
@@ -123,23 +121,24 @@ export default async function BilanConseilDepartementalPage({
   }
 
   // Ateliers de l'année
-  type CompteurRow = { theme: string; nbSeances: bigint; nbAvecFiche: bigint; nbSansFiche: bigint }
+  type CompteurRow = { themeNom: string; nbSeances: bigint; nbAvecFiche: bigint; nbSansFiche: bigint }
   const atelierRows = await prisma.$queryRaw<CompteurRow[]>(Prisma.sql`
     SELECT
-      ac.theme,
+      t.nom AS "themeNom",
       COUNT(DISTINCT ac.id)                                                            AS "nbSeances",
       COUNT(DISTINCT pa."personId") FILTER (WHERE pa."deletedAt" IS NULL)              AS "nbAvecFiche",
       0::bigint                                                                        AS "nbSansFiche"
     FROM "ActionCollective" ac
+    JOIN "ThemeAtelierRef" t ON t.id = ac."themeId"
     LEFT JOIN "ParticipationAtelier" pa ON pa."actionCollectiveId" = ac.id
     WHERE ac."deletedAt" IS NULL
       AND ac.date BETWEEN ${debut} AND ${fin}
-    GROUP BY ac.theme
-    ORDER BY ac.theme
+    GROUP BY t.nom
+    ORDER BY t.nom
   `)
 
   const atelierStats = atelierRows.map((r) => ({
-    theme:       THEMES_ATELIER_FR[r.theme as ThemeAtelier] ?? r.theme,
+    theme:       r.themeNom,
     nbSeances:   Number(r.nbSeances),
     nbAvecFiche: Number(r.nbAvecFiche),
     nbSansFiche: Number(r.nbSansFiche),
@@ -158,12 +157,12 @@ export default async function BilanConseilDepartementalPage({
             <Link href="/bilans" className="hover:underline">Bilans</Link>
             {' / '}Conseil Départemental
           </div>
-          <h1 className="text-2xl font-bold">Bilan Conseil Départemental — {annee}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Bilan Conseil Départemental — {annee}</h1>
+            <BoutonExport type="conseil-departemental" annee={annee} />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
-          <BoutonExport type="conseil-departemental" annee={annee} />
-        </div>
+        <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
       </div>
 
       {/* Synthèse générale */}

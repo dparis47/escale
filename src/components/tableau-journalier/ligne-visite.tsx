@@ -1,14 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Eye, Info, Trash2 } from 'lucide-react'
 import type { VisiteAvecRelations } from '@/types/visits'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FormulaireVisite } from './formulaire-visite'
-import { formaterDateCourte } from '@/lib/dates'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { fromPrisma, themesAvecFeuilles } from '@/lib/demarches'
 
-interface BadgesAccompagnement { fse: boolean; asid: boolean; ei: boolean }
+interface BadgesAccompagnement { fse: boolean; asid: boolean }
 
 interface Props {
   visite:  VisiteAvecRelations
@@ -28,7 +31,7 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
     router.refresh()
   }
 
-  const nomPrenom = `${visite.person.nom.toUpperCase()} ${visite.person.prenom}`
+  const nomPrenom = `${visite.person.nom.toUpperCase()} ${capitaliserPrenom(visite.person.prenom)}`
 
   const auditInfo = [
     visite.saisiePar
@@ -62,13 +65,10 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
       {/* Type accompagnement */}
       <td className={`${cellBase} px-2 py-3`} {...survolProps}>
         <div className="flex flex-wrap gap-1">
-          {badges?.ei && (
-            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 border border-orange-200">EI</span>
-          )}
-          {badges?.fse && !badges?.ei && (
+          {badges?.fse && (
             <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 border border-green-200">FSE+</span>
           )}
-          {badges?.asid && !badges?.ei && (
+          {badges?.asid && (
             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200">ASID</span>
           )}
         </div>
@@ -119,23 +119,42 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
       <td className={`${cellBase} px-3 py-3`} {...survolProps}>
         <div className="flex items-center gap-1">
           {auditInfo && (
-            <span
-              title={auditInfo}
-              className="cursor-help select-none text-base text-muted-foreground"
-            >
-              ⓘ
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-default select-none text-muted-foreground">
+                  <Info className="h-4 w-4" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-xs">
+                {auditInfo}
+              </TooltipContent>
+            </Tooltip>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href={`/personnes/${visite.personId}`}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600">
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Voir le dossier</TooltipContent>
+          </Tooltip>
           <FormulaireVisite dateISO={dateISO} mode="edition" visite={visite} />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            onClick={supprimer}
-            disabled={enSuppression}
-          >
-            Supprimer
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={supprimer}
+                disabled={enSuppression}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Supprimer</TooltipContent>
+          </Tooltip>
         </div>
       </td>
 

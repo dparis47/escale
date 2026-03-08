@@ -4,11 +4,12 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 
 interface Props {
-  annee: number
+  annee:      number
+  basePath?:  string  // défaut '/partenaires'
 }
 
-export function NavigationAnnee({ annee }: Props) {
-  const router      = useRouter()
+export function NavigationAnnee({ annee, basePath = '/partenaires' }: Props) {
+  const router        = useRouter()
   const anneeActuelle = new Date().getFullYear()
 
   return (
@@ -16,7 +17,7 @@ export function NavigationAnnee({ annee }: Props) {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => router.push(`/partenaires?annee=${annee - 1}`)}
+        onClick={() => router.push(`${basePath}?annee=${annee - 1}`)}
       >
         ← Année précédente
       </Button>
@@ -24,7 +25,7 @@ export function NavigationAnnee({ annee }: Props) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => router.push('/partenaires')}
+          onClick={() => router.push(basePath)}
         >
           Année actuelle
         </Button>
@@ -33,7 +34,7 @@ export function NavigationAnnee({ annee }: Props) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => router.push(`/partenaires?annee=${annee + 1}`)}
+          onClick={() => router.push(`${basePath}?annee=${annee + 1}`)}
         >
           Année suivante →
         </Button>

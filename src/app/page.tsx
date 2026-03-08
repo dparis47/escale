@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { parseISO, dateAujourdhui, formaterDate, estFutur } from '@/lib/dates'
-import type { VisiteAvecRelations } from '@/types/visits'
+import { parseISO, dateAujourdhui, estFutur } from '@/lib/dates'
+import { BreadcrumbVues } from '@/components/tableau-journalier/breadcrumb-vues'
 import { NavigationDate } from '@/components/tableau-journalier/navigation-date'
 import { TableauVisites } from '@/components/tableau-journalier/tableau-visites'
 import { FormulaireVisite } from '@/components/tableau-journalier/formulaire-visite'
@@ -37,7 +37,7 @@ export default async function TableauJournalierPage({
     prisma.visit.findMany({
       where: { date: parseISO(dateISO), deletedAt: null },
       include: {
-        person:      { select: { id: true, nom: true, prenom: true, genre: true, estInscrit: true } },
+        person:      { select: { id: true, nom: true, prenom: true, genre: true, estInscrit: true, _count: { select: { visites: { where: { deletedAt: null } } } } } },
         saisiePar:   { select: { prenom: true, nom: true } },
         modifiePar:  { select: { prenom: true, nom: true } },
         demarches: true,
@@ -72,14 +72,13 @@ export default async function TableauJournalierPage({
     select: { personId: true, suiviASID: { select: { id: true } }, suiviEI: { select: { id: true } } },
   }) as { personId: number; suiviASID: { id: number } | null; suiviEI: { id: number } | null }[] : []
 
-  const badgesParPersonId = new Map<number, { fse: boolean; asid: boolean; ei: boolean }>()
+  const badgesParPersonId: Record<number, { fse: boolean; asid: boolean }> = {}
   for (const a of accompagnementsPersonnes) {
-    const prev = badgesParPersonId.get(a.personId) ?? { fse: false, asid: false, ei: false }
-    badgesParPersonId.set(a.personId, {
-      fse:  prev.fse  || !a.suiviEI,
+    const prev = badgesParPersonId[a.personId] ?? { fse: false, asid: false }
+    badgesParPersonId[a.personId] = {
+      fse:  prev.fse  || a.suiviEI === null || a.suiviEI === undefined,
       asid: prev.asid || !!a.suiviASID,
-      ei:   prev.ei   || !!a.suiviEI,
-    })
+    }
   }
 
   const visites = visitesRaw.sort((a, b) => {
@@ -100,8 +99,13 @@ export default async function TableauJournalierPage({
     <main className="container mx-auto px-4 py-6">
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-600">Tableau journalier accueil</h1>
-          <p className="capitalize text-muted-foreground">{formaterDate(dateISO)}</p>
+          <BreadcrumbVues
+            vue="journaliere"
+            annee={annee}
+            moisISO={dateISO.slice(0, 7)}
+            dateISO={dateISO}
+          />
+          <h1 className="mt-1 text-2xl font-bold text-blue-600">Tableau d'Accueil Journalier</h1>
         </div>
         <NavigationDate dateISO={dateISO} />
       </div>

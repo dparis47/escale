@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { capitaliserPrenom } from '@/lib/dates'
 
 interface PersonneOption {
   id:     number
@@ -139,7 +140,7 @@ export function SectionParticipants({ atelierId, participants: init }: Props) {
           {participants.map((p) => (
             <li key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
               <span className="font-medium">
-                {p.person.nom.toUpperCase()} {p.person.prenom}
+                {p.person.nom.toUpperCase()} {capitaliserPrenom(p.person.prenom)}
               </span>
               <Button
                 variant="ghost"
@@ -156,7 +157,7 @@ export function SectionParticipants({ atelierId, participants: init }: Props) {
           {sansFiche.map((v, i) => (
             <li key={`sf-${i}`} className="flex items-center justify-between px-3 py-2 text-sm">
               <span className="font-medium">
-                {v.nom ? v.nom.toUpperCase() : ''}{v.prenom ? ` ${v.prenom}` : ''}
+                {v.nom ? v.nom.toUpperCase() : ''}{v.prenom ? ` ${capitaliserPrenom(v.prenom)}` : ''}
                 <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                   fiche à créer
                 </span>
@@ -186,7 +187,7 @@ export function SectionParticipants({ atelierId, participants: init }: Props) {
                   className="cursor-pointer px-3 py-2 text-sm hover:bg-muted"
                   onMouseDown={() => ajouterParticipant(s)}
                 >
-                  {s.nom.toUpperCase()} {s.prenom}
+                  {s.nom.toUpperCase()} {capitaliserPrenom(s.prenom)}
                 </li>
               ))}
             </ul>

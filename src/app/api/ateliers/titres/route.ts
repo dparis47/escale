@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { THEMES_ATELIER_VALUES } from '@/schemas/atelier'
-import type { ThemeAtelier } from '@prisma/client'
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -12,14 +10,15 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const theme = searchParams.get('theme') as ThemeAtelier | null
+  const themeIdStr = searchParams.get('themeId')
+  const themeId = themeIdStr ? Number(themeIdStr) : NaN
 
-  if (!theme || !THEMES_ATELIER_VALUES.includes(theme)) {
+  if (isNaN(themeId) || themeId < 1) {
     return NextResponse.json({ erreur: 'Thème invalide' }, { status: 400 })
   }
 
   const rows = await prisma.actionCollective.findMany({
-    where:    { deletedAt: null, theme, themeAutre: { not: null } },
+    where:    { deletedAt: null, themeId, themeAutre: { not: null } },
     select:   { themeAutre: true },
     distinct: ['themeAutre'],
     orderBy:  { themeAutre: 'asc' },

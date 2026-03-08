@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   ARBRE_DEMARCHES,
   DEMARCHE_VIDE,
@@ -26,113 +27,65 @@ interface Props {
 
 // ─── Thème ateliers dynamique ─────────────────────────────────────────────────
 
+type CategorieThemes = { nom: string; themes: string[] }
+
+/** Première lettre en majuscule */
+function majuscule(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
 function ThemeAteliersDynamiques({
   champs,
   onChange,
   disabled,
-  ateliersSuggeres,
+  categoriesAteliers,
 }: {
-  champs:            DemarcheChamps
-  onChange:          (c: DemarcheChamps) => void
-  disabled?:         boolean
-  ateliersSuggeres:  string[]
+  champs:              DemarcheChamps
+  onChange:            (c: DemarcheChamps) => void
+  disabled?:           boolean
+  categoriesAteliers:  CategorieThemes[]
 }) {
-  const [texteLibre, setTexteLibre] = useState('')
+  const valeur = champs.atelierNoms[0] ?? ''
 
-  function toggleAtelier(nom: string) {
-    const actuel  = champs.atelierNoms
-    const suivant = actuel.includes(nom)
-      ? actuel.filter((a) => a !== nom)
-      : [...actuel, nom]
-    onChange({ ...champs, atelierNoms: suivant, atelierParticipation: suivant.length > 0 })
+  function choisir(nom: string) {
+    if (nom === '__aucun__') {
+      onChange({ ...champs, atelierNoms: [], atelierParticipation: false })
+    } else {
+      onChange({ ...champs, atelierNoms: [nom], atelierParticipation: true })
+    }
   }
-
-  function ajouterLibre() {
-    const v = texteLibre.trim()
-    if (!v || champs.atelierNoms.includes(v)) return
-    const suivant = [...champs.atelierNoms, v]
-    onChange({ ...champs, atelierNoms: suivant, atelierParticipation: suivant.length > 0 })
-    setTexteLibre('')
-  }
-
-  // Ateliers saisis librement (pas dans la liste suggérée)
-  const ateliersLibres = champs.atelierNoms.filter((a) => !ateliersSuggeres.includes(a))
 
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-0.5">
         ATELIERS DE REDYNAMISATION
       </p>
-      <div className="space-y-2">
-        {/* Cases à cocher pour chaque atelier de la liste */}
-        {ateliersSuggeres.length > 0 && (
-          <div className="flex flex-wrap gap-x-6 gap-y-1.5">
-            {ateliersSuggeres.map((nom) => (
-              <div key={nom} className="flex items-center gap-2">
-                <Checkbox
-                  id={`atelier-${nom}`}
-                  checked={champs.atelierNoms.includes(nom)}
-                  onCheckedChange={() => toggleAtelier(nom)}
-                  disabled={disabled}
-                />
-                <Label
-                  htmlFor={`atelier-${nom}`}
-                  className={`cursor-pointer font-normal text-sm ${disabled ? 'opacity-50' : ''}`}
-                >
-                  {nom}
-                </Label>
-              </div>
-            ))}
-          </div>
-        )}
 
-        {/* Ateliers saisis librement */}
-        {ateliersLibres.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {ateliersLibres.map((nom) => (
-              <span
-                key={nom}
-                className="inline-flex items-center gap-1 rounded-full border border-input bg-background px-2 py-0.5 text-xs"
-              >
-                {nom}
-                {!disabled && (
-                  <button
-                    type="button"
-                    onClick={() => toggleAtelier(nom)}
-                    className="text-muted-foreground hover:text-destructive leading-none"
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Saisie libre */}
-        {!disabled && (
-          <div className="flex gap-1">
-            <Input
-              value={texteLibre}
-              onChange={(e) => setTexteLibre(e.target.value)}
-              className="h-7 flex-1 text-sm"
-              placeholder="Atelier non listé…"
-              maxLength={200}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); ajouterLibre() }
-              }}
-            />
-            <button
-              type="button"
-              onClick={ajouterLibre}
-              disabled={!texteLibre.trim()}
-              className="rounded border border-input px-2 text-xs hover:bg-muted disabled:opacity-50"
-            >
-              +
-            </button>
-          </div>
-        )}
-      </div>
+      <Select
+        value={valeur || '__aucun__'}
+        onValueChange={choisir}
+        disabled={disabled}
+      >
+        <SelectTrigger className="max-w-md">
+          <SelectValue placeholder="Aucun atelier" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__aucun__">Aucun atelier</SelectItem>
+          {categoriesAteliers.map((cat, ci) => (
+            <SelectGroup key={cat.nom}>
+              {ci > 0 && <div className="mx-1 my-1.5 h-px bg-border" />}
+              <SelectLabel className="px-2 py-1.5 text-sm font-semibold text-foreground uppercase tracking-wide">
+                {majuscule(cat.nom)}
+              </SelectLabel>
+              {cat.themes.map((nom) => (
+                <SelectItem key={nom} value={nom} className="pl-5">
+                  {majuscule(nom)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -427,12 +380,12 @@ export function ArbreDemarches({ champs, onChange, disabled }: Props) {
   const [sectionsOuvertes, setSectionsOuvertes] = useState<Set<string>>(
     () => sectionsOuvertesInitiales(champs),
   )
-  const [ateliersSuggeres, setAteliersSuggeres] = useState<string[]>([])
+  const [categoriesAteliers, setCategoriesAteliers] = useState<CategorieThemes[]>([])
 
   useEffect(() => {
     fetch('/api/ateliers/noms-demarches')
       .then((r) => r.json())
-      .then((d: { noms?: string[] }) => setAteliersSuggeres(d.noms ?? []))
+      .then((d: { categories?: CategorieThemes[] }) => setCategoriesAteliers(d.categories ?? []))
       .catch(() => {})
   }, [])
 
@@ -458,7 +411,7 @@ export function ArbreDemarches({ champs, onChange, disabled }: Props) {
         champs={champs}
         onChange={onChange}
         disabled={disabled}
-        ateliersSuggeres={ateliersSuggeres}
+        categoriesAteliers={categoriesAteliers}
       />
     </div>
   )

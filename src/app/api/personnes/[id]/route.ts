@@ -67,7 +67,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const {
-    dateNaissance, dateInscriptionFT, dateActualisation,
+    dateNaissance, dateInscriptionFT,
     email, ressources, agesEnfants,
     ...rest
   } = parsed.data
@@ -77,10 +77,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data: {
       ...rest,
       estInscrit: true,
+      dateActualisation: new Date(),
       ...(email !== undefined     ? { email: email === '' ? null : email }                                : {}),
       ...(dateNaissance !== undefined     ? { dateNaissance:     dateNaissance     ? parseISO(dateNaissance)     : null } : {}),
       ...(dateInscriptionFT !== undefined ? { dateInscriptionFT: dateInscriptionFT ? parseISO(dateInscriptionFT) : null } : {}),
-      ...(dateActualisation !== undefined ? { dateActualisation: dateActualisation ? parseISO(dateActualisation) : null } : {}),
       ...(ressources !== undefined  ? { ressources:  { set: ressources  } } : {}),
       ...(agesEnfants !== undefined ? { agesEnfants: { set: agesEnfants } } : {}),
     },

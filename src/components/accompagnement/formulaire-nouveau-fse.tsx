@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { capitaliserPrenom } from '@/lib/dates'
 
 interface PersonneOption {
   id:     number
@@ -13,27 +13,20 @@ interface PersonneOption {
   prenom: string
 }
 
-interface Referent {
-  id:     number
-  nom:    string
-  prenom: string
-}
-
 interface Props {
-  referents: Referent[]
+  personneInitiale?: PersonneOption | null
 }
 
-export function FormulaireNouveauFSE({ referents }: Props) {
+export function FormulaireNouveauFSE({ personneInitiale }: Props = {}) {
   const router = useRouter()
 
-  const [personneSelectionnee, setPersonneSelectionnee] = useState<PersonneOption | null>(null)
+  const [personneSelectionnee, setPersonneSelectionnee] = useState<PersonneOption | null>(personneInitiale ?? null)
   const [recherchePersonne,    setRecherchePersonne]    = useState('')
   const [suggestions,          setSuggestions]          = useState<PersonneOption[]>([])
   const [afficherSuggestions,  setAfficherSuggestions]  = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [dateEntree, setDateEntree] = useState('')
-  const [referentId, setReferentId] = useState('')
 
   const [erreur,       setErreur]       = useState('')
   const [enChargement, setEnChargement] = useState(false)
@@ -72,7 +65,6 @@ export function FormulaireNouveauFSE({ referents }: Props) {
         body:    JSON.stringify({
           personId:   personneSelectionnee.id,
           dateEntree,
-          referentId: referentId ? Number(referentId) : undefined,
         }),
       })
       if (!res.ok) {
@@ -97,7 +89,7 @@ export function FormulaireNouveauFSE({ referents }: Props) {
         {personneSelectionnee ? (
           <div className="flex items-center gap-2">
             <span className="rounded border px-3 py-2 text-sm bg-muted">
-              {personneSelectionnee.nom} {personneSelectionnee.prenom}
+              {personneSelectionnee.nom.toUpperCase()} {capitaliserPrenom(personneSelectionnee.prenom)}
             </span>
             <Button
               type="button" variant="ghost" size="sm"
@@ -128,7 +120,7 @@ export function FormulaireNouveauFSE({ referents }: Props) {
                       setAfficherSuggestions(false)
                     }}
                   >
-                    {p.nom} {p.prenom}
+                    {p.nom.toUpperCase()} {capitaliserPrenom(p.prenom)}
                   </li>
                 ))}
               </ul>
@@ -146,24 +138,6 @@ export function FormulaireNouveauFSE({ referents }: Props) {
           onChange={(e) => setDateEntree(e.target.value)}
           className="max-w-xs"
         />
-      </div>
-
-      {/* Référent FSE */}
-      <div className="space-y-1.5">
-        <Label className="text-sm">Référent FSE</Label>
-        <Select value={referentId || 'none'} onValueChange={(v) => setReferentId(v === 'none' ? '' : v)}>
-          <SelectTrigger className="max-w-xs">
-            <SelectValue placeholder="Sélectionner un référent…" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">— Aucun —</SelectItem>
-            {referents.map((r) => (
-              <SelectItem key={r.id} value={String(r.id)}>
-                {r.nom} {r.prenom}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {erreur && <p className="text-sm text-destructive">{erreur}</p>}

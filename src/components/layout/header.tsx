@@ -3,12 +3,19 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { LogOut, ChevronDown } from 'lucide-react'
 import type { Role } from '@prisma/client'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
 const ROLES_FR: Record<Role, string> = {
   ACCUEIL:           'Accueil',
-  TRAVAILLEUR_SOCIAL: 'Conseillère insertion',
+  TRAVAILLEUR_SOCIAL: 'Travailleur social',
   DIRECTION:         'Direction',
 }
 
@@ -70,18 +77,20 @@ export function Header({ user }: Props) {
           </nav>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>
-            {user.name} · {ROLES_FR[user.role]}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => signOut({ callbackUrl: '/login' })}
-          >
-            Déconnexion
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+              {user.name}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/login' })}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Déconnexion
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

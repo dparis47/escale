@@ -15,7 +15,7 @@ import {
   ORIENTE_PAR_OPTIONS,
   HEBERGEMENT_OPTIONS,
 } from '@/schemas/person'
-import { formaterDateISO } from '@/lib/dates'
+import { formaterDateISO, capitaliserPrenom } from '@/lib/dates'
 
 type Mode = 'creation' | 'edition'
 
@@ -31,7 +31,7 @@ function toInputDate(d: Date | null | undefined): string {
 
 function SectionTitre({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <h2 className="mb-3 rounded-md bg-blue-50 px-2 py-1 text-sm font-semibold uppercase tracking-wide text-blue-700">
       {children}
     </h2>
   )
@@ -63,8 +63,8 @@ export function FormulairePersonne({ mode, personne }: Props) {
   const router = useRouter()
 
   // ── Identité ───────────────────────────────────────────────
-  const [nom,           setNom]           = useState(personne?.nom    ?? '')
-  const [prenom,        setPrenom]        = useState(personne?.prenom ?? '')
+  const [nom,           setNom]           = useState((personne?.nom    ?? '').toUpperCase())
+  const [prenom,        setPrenom]        = useState(capitaliserPrenom(personne?.prenom ?? ''))
   const [genre,         setGenre]         = useState<Genre | ''>(personne?.genre ?? '')
   const [dateNaissance, setDateNaissance] = useState(toInputDate(personne?.dateNaissance))
   const [nationalite,   setNationalite]   = useState(personne?.nationalite ?? '')
@@ -74,7 +74,6 @@ export function FormulairePersonne({ mode, personne }: Props) {
   const [telephone,         setTelephone]         = useState(personne?.telephone         ?? '')
   const [mobile,            setMobile]            = useState(personne?.mobile            ?? '')
   const [email,             setEmail]             = useState(personne?.email             ?? '')
-  const [dateActualisation, setDateActualisation] = useState(toInputDate(personne?.dateActualisation))
 
   // ── Santé ──────────────────────────────────────────────────
   const [css,                 setCss]                 = useState(personne?.css                 ?? false)
@@ -155,7 +154,6 @@ export function FormulairePersonne({ mode, personne }: Props) {
         telephone:         telephone         || vide,
         mobile:            mobile            || vide,
         email:             email             || '',
-        dateActualisation: dateActualisation || undefined,
         css,
         rqth,
         invalidite,
@@ -206,17 +204,34 @@ export function FormulairePersonne({ mode, personne }: Props) {
   }
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <>
+      {mode === 'edition' && personne && (
+        <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between border-b bg-background/95 px-4 py-4 backdrop-blur-sm">
+          <h1 className="text-2xl font-bold text-blue-700">
+            {personne.nom.toUpperCase()} {capitaliserPrenom(personne.prenom)}
+          </h1>
+          <div className="flex items-center gap-2">
+            {erreur && <p className="text-sm text-destructive">{erreur}</p>}
+            <Button onClick={soumettre} disabled={enChargement}>
+              {enChargement ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+            <Button variant="outline" onClick={() => router.back()}>
+              Annuler
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className={`space-y-8 max-w-2xl${mode === 'edition' ? ' py-6' : ''}`}>
 
       {/* ── Identité ─────────────────────────────────────── */}
       <section>
         <SectionTitre>Identité</SectionTitre>
         <div className="grid grid-cols-2 gap-4">
           <Champ label="Nom" required>
-            <Input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={100} placeholder="Nom de famille…" />
+            <Input value={nom} onChange={(e) => setNom(e.target.value.toUpperCase())} maxLength={100} placeholder="Nom de famille…" />
           </Champ>
           <Champ label="Prénom" required>
-            <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} maxLength={100} placeholder="Prénom…" />
+            <Input value={prenom} onChange={(e) => setPrenom(capitaliserPrenom(e.target.value))} maxLength={100} placeholder="Prénom…" />
           </Champ>
           <Champ label="Genre" required>
             <Select value={genre} onValueChange={(v) => setGenre(v as Genre)}>
@@ -253,14 +268,9 @@ export function FormulairePersonne({ mode, personne }: Props) {
               <Input value={mobile} onChange={(e) => setMobile(e.target.value)} maxLength={20} placeholder="06…" />
             </Champ>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Champ label="Email">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={200} placeholder="email@exemple.fr" />
-            </Champ>
-            <Champ label="Date d'actualisation">
-              <Input type="date" value={dateActualisation} onChange={(e) => setDateActualisation(e.target.value)} />
-            </Champ>
-          </div>
+          <Champ label="Email">
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={200} placeholder="email@exemple.fr" />
+          </Champ>
         </div>
       </section>
 
@@ -441,17 +451,21 @@ export function FormulairePersonne({ mode, personne }: Props) {
         </div>
       </section>
 
-      {/* ── Erreur & boutons ─────────────────────────────── */}
-      {erreur && <p className="text-sm text-destructive">{erreur}</p>}
-
-      <div className="flex gap-3 pt-2">
-        <Button onClick={soumettre} disabled={enChargement}>
-          {enChargement ? 'Enregistrement…' : 'Enregistrer'}
-        </Button>
-        <Button variant="outline" onClick={() => router.back()}>
-          Annuler
-        </Button>
+      {/* ── Erreur & boutons (création uniquement) ───────── */}
+      {mode === 'creation' && (
+        <>
+          {erreur && <p className="text-sm text-destructive">{erreur}</p>}
+          <div className="flex gap-3 pt-2">
+            <Button onClick={soumettre} disabled={enChargement}>
+              {enChargement ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+            <Button variant="outline" onClick={() => router.back()}>
+              Annuler
+            </Button>
+          </div>
+        </>
+      )}
       </div>
-    </div>
+    </>
   )
 }

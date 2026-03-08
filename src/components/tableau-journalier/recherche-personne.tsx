@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Genre } from '@prisma/client'
 import { Input } from '@/components/ui/input'
+import { capitaliserPrenom } from '@/lib/dates'
 
 type PersonneResultat = {
   id: number
@@ -56,7 +57,7 @@ export function RecherchePersonne({ onSelect, valeurInitiale = '' }: Props) {
   }, [])
 
   function selectionner(personne: PersonneResultat) {
-    setQuery(`${personne.prenom} ${personne.nom}`)
+    setQuery(`${capitaliserPrenom(personne.prenom)} ${personne.nom.toUpperCase()}`)
     setOuvert(false)
     onSelect(personne)
   }
@@ -87,7 +88,7 @@ export function RecherchePersonne({ onSelect, valeurInitiale = '' }: Props) {
                     className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
                     onClick={() => selectionner(p)}
                   >
-                    {p.nom} {p.prenom}
+                    {p.nom.toUpperCase()} {capitaliserPrenom(p.prenom)}
                     <span className="ml-2 text-xs text-muted-foreground">
                       {p.genre === 'HOMME' ? 'H' : 'F'}
                     </span>

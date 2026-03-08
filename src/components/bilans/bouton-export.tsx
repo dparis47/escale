@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Download } from 'lucide-react'
 
-type TypeBilan = 'france-travail' | 'cpam-ars' | 'cpam' | 'ars' | 'conseil-departemental' | 'fse'
+type TypeBilan = 'france-travail' | 'cpam-ars' | 'cpam' | 'ars' | 'conseil-departemental' | 'fse' | 'asid'
 
 interface Props {
   type:  TypeBilan
@@ -31,8 +32,15 @@ export function BoutonExport({ type, annee }: Props) {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={telecharger} disabled={enCours}>
-      {enCours ? 'Génération…' : 'Exporter Excel'}
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={telecharger}
+      disabled={enCours}
+      title="Exporter Excel"
+      className="h-8 w-8 text-blue-700 hover:text-blue-900"
+    >
+      <Download className={`h-5 w-5 ${enCours ? 'animate-pulse' : ''}`} />
     </Button>
   )
 }

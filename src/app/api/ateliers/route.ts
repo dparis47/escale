@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseISO } from '@/lib/dates'
-import { schemaCreerAtelier, THEMES_ATELIER_FR } from '@/schemas/atelier'
-import type { ThemeAtelier } from '@prisma/client'
+import { schemaCreerAtelier } from '@/schemas/atelier'
 
 const PAR_PAGE = 50
 
@@ -18,21 +17,14 @@ export async function GET(request: Request) {
   const q    = searchParams.get('q')?.trim() ?? ''
   const page = Math.max(1, Number(searchParams.get('page') ?? '1'))
 
-  // Filtre : recherche sur le label FR du thème ou sur le lieu
-  // Comme le thème est un enum, on filtre sur les valeurs dont le label contient q
-  const themesMatchants = q.length >= 2
-    ? (Object.entries(THEMES_ATELIER_FR) as [ThemeAtelier, string][])
-        .filter(([, label]) => label.toLowerCase().includes(q.toLowerCase()))
-        .map(([theme]) => theme)
-    : []
-
   const where = q.length >= 2
     ? {
         deletedAt: null,
         OR: [
-          ...(themesMatchants.length > 0 ? [{ theme: { in: themesMatchants } }] : []),
+          { themeRef: { nom: { contains: q, mode: 'insensitive' as const } } },
           { lieu: { contains: q, mode: 'insensitive' as const } },
-          { prestataire: { contains: q, mode: 'insensitive' as const } },
+          { prestataire: { nom: { contains: q, mode: 'insensitive' as const } } },
+          { themeRef: { categorie: { nom: { contains: q, mode: 'insensitive' as const } } } },
         ],
       }
     : { deletedAt: null }
@@ -41,6 +33,8 @@ export async function GET(request: Request) {
     prisma.actionCollective.findMany({
       where,
       include: {
+        themeRef: { include: { categorie: true } },
+        prestataire: true,
         _count: { select: { participants: { where: { deletedAt: null } } } },
       },
       orderBy: { date: 'desc' },
@@ -70,16 +64,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ erreur: 'Données invalides', details: parsed.error.flatten() }, { status: 422 })
   }
 
-  const { theme, prestataire, lieu, seances, notes } = parsed.data
+  const { themeId, prestataireId, lieu, seances, notes } = parsed.data
+
+  // Vérifier que le thème existe
+  const theme = await prisma.themeAtelierRef.findFirst({ where: { id: themeId, deletedAt: null } })
+  if (!theme) return NextResponse.json({ erreur: 'Thème introuvable' }, { status: 400 })
+
+  if (prestataireId) {
+    const presta = await prisma.prestataire.findFirst({ where: { id: prestataireId, deletedAt: null } })
+    if (!presta) return NextResponse.json({ erreur: 'Prestataire introuvable' }, { status: 400 })
+  }
 
   await prisma.actionCollective.createMany({
     data: seances.map((s) => ({
-      theme,
-      themeAutre:  s.themeAutre || null,
-      prestataire: prestataire  || null,
-      lieu:        lieu         || null,
-      date:        parseISO(s.date),
-      notes:       notes        || null,
+      themeId,
+      themeAutre:    s.themeAutre || null,
+      prestataireId: prestataireId || null,
+      lieu:          lieu          || null,
+      date:          parseISO(s.date),
+      notes:         notes         || null,
     })),
   })
 

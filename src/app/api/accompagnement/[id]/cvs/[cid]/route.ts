@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: Params) {
   const cid = Number(cidStr)
   if (isNaN(cid)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
 
-  const cv = await prisma.cvASID.findUnique({ where: { id: cid } })
+  const cv = await prisma.cv.findUnique({ where: { id: cid } })
   if (!cv) return NextResponse.json({ erreur: 'CV introuvable' }, { status: 404 })
 
   const ext = cv.nom.split('.').pop()?.toLowerCase()
@@ -46,10 +46,10 @@ export async function DELETE(_request: Request, { params }: Params) {
   const cid = Number(cidStr)
   if (isNaN(cid)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
 
-  const cv = await prisma.cvASID.findUnique({ where: { id: cid }, select: { id: true } })
+  const cv = await prisma.cv.findUnique({ where: { id: cid }, select: { id: true } })
   if (!cv) return NextResponse.json({ erreur: 'CV introuvable' }, { status: 404 })
 
-  await prisma.cvASID.delete({ where: { id: cid } })
+  await prisma.cv.delete({ where: { id: cid } })
 
   return new NextResponse(null, { status: 204 })
 }

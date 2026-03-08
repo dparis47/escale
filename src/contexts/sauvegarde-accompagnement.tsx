@@ -61,6 +61,12 @@ export function useModeEdition() {
   return useContext(SauvegardeContext)?.modeEdition ?? false
 }
 
+/** Retourne la fonction setModeEdition pour basculer le mode depuis un composant enfant. */
+export function useSetModeEdition() {
+  const ctx = useContext(SauvegardeContext)
+  return ctx?.setModeEdition ?? (() => {})
+}
+
 /** Bouton toggle "Modifier" / "Enregistrer" — à placer dans le header sticky. */
 export function BoutonEnregistrerGlobal() {
   const ctx = useContext(SauvegardeContext)
@@ -98,6 +104,13 @@ export function BoutonEnregistrerGlobal() {
       {erreur && <span className="text-sm text-destructive">Erreur.</span>}
       <Button onClick={enregistrerTout} disabled={enCours}>
         {enCours ? 'Enregistrement…' : 'Enregistrer'}
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => { ctx.setModeEdition(false); setErreur(false) }}
+        disabled={enCours}
+      >
+        Annuler
       </Button>
     </div>
   )

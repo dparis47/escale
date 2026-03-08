@@ -2,19 +2,21 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { formaterDateCourte } from '@/lib/dates'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
+import { Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { BoutonSupprimerAccompagnement } from '@/components/accompagnement/bouton-supprimer-accompagnement'
+import { BoutonExportAccompagnements } from '@/components/accompagnement/bouton-export-accompagnements'
+import { BarreRechercheAuto } from '@/components/ui/barre-recherche-auto'
 
 interface AccompagnementListe {
-  id:        number
-  dateEntree: Date
-  dateSortie: Date | null
-  person:    { id: number; nom: string; prenom: string }
-  referent:  { id: number; nom: string; prenom: string } | null
-  suiviASID: { id: number } | null
-  suiviEI:   { id: number } | null
+  id:          number
+  dateEntree:  Date
+  dateSortie:  Date | null
+  estBrouillon: boolean
+  person:      { id: number; nom: string; prenom: string }
+  suiviASID:   { id: number } | null
 }
 
 const PAR_PAGE = 50
@@ -36,7 +38,9 @@ export default async function ListeAccompagnementsPage({
 
   const where = {
     deletedAt: null,
-    ...(q.length >= 2
+    // Exclure les dossiers individuels (EI) — seuls FSE+ et ASID sont listés
+    suiviEI: null,
+    ...(q.length >= 3
       ? {
           person: {
             OR: [
@@ -49,48 +53,51 @@ export default async function ListeAccompagnementsPage({
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [accompagnements, total, nbEI, nbASID] = await Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [accompagnements, total, nbASID, nbBrouillons] = await Promise.all([
     (prisma.accompagnement.findMany as any)({
       where,
-      include: {
+      select: {
+        id:           true,
+        dateEntree:   true,
+        dateSortie:   true,
+        estBrouillon: true,
         person:    { select: { id: true, nom: true, prenom: true } },
-        referent:  { select: { id: true, nom: true, prenom: true } },
         suiviASID: { select: { id: true } },
-        suiviEI:   { select: { id: true } },
       },
       orderBy: [{ person: { nom: 'asc' } }, { person: { prenom: 'asc' } }],
       skip:    (page - 1) * PAR_PAGE,
       take:    PAR_PAGE,
     }) as Promise<AccompagnementListe[]>,
-    prisma.accompagnement.count({ where }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (prisma as any).suiviEI.count({ where: { accompagnement: where } }) as Promise<number>,
-    prisma.suiviASID.count({ where: { accompagnement: where } }),
+    prisma.accompagnement.count({ where: where as any }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prisma.suiviASID.count({ where: { accompagnement: where } as any }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prisma.accompagnement.count({ where: { ...where, estBrouillon: true } as any }),
   ])
 
-  const nbFSE = total - nbEI
+  const nbFSE      = total
   const totalPages = Math.ceil(total / PAR_PAGE)
 
   return (
     <main className="container mx-auto px-4 py-6">
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Accompagnements</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Accompagnements</h1>
+            <BoutonExportAccompagnements />
+          </div>
           <p className="text-sm text-muted-foreground">{total} personne{total > 1 ? 's' : ''}</p>
           {total > 0 && (
             <div className="mt-1 flex gap-1.5">
               {nbFSE > 0 && <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">FSE+ {nbFSE}</span>}
               {nbASID > 0 && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">ASID {nbASID}</span>}
-              {nbEI > 0 && <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">EI {nbEI}</span>}
+              {nbBrouillons > 0 && <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">{nbBrouillons} dossier{nbBrouillons > 1 ? 's' : ''} à compléter</span>}
             </div>
           )}
         </div>
         {isTS && (
           <div className="flex gap-2">
-            <Link href="/accompagnement/nouveau-ei">
-              <Button className="border border-orange-200 bg-orange-100 text-orange-700 hover:bg-orange-200">+ Nouveau espace d&apos;insertion</Button>
-            </Link>
             <Link href="/accompagnement/nouveau-asid">
               <Button className="border border-blue-400 bg-blue-100 text-blue-800 hover:bg-blue-200">+ Nouveau ASID</Button>
             </Link>
@@ -102,17 +109,13 @@ export default async function ListeAccompagnementsPage({
       </div>
 
       {/* Recherche */}
-      <form method="GET" className="mb-6">
-        <div className="flex max-w-sm gap-2">
-          <Input name="q" defaultValue={q} placeholder="Rechercher par nom ou prénom…" autoComplete="off" />
-          <Button type="submit" variant="outline">Rechercher</Button>
-          {q && (
-            <Link href="/accompagnement">
-              <Button variant="ghost">✕</Button>
-            </Link>
-          )}
-        </div>
-      </form>
+      <div className="mb-6">
+        <BarreRechercheAuto
+          placeholder="Rechercher par nom ou prénom…"
+          defaultValue={q}
+          baseUrl="/accompagnement"
+        />
+      </div>
 
       {/* Table */}
       {accompagnements.length === 0 ? (
@@ -128,7 +131,6 @@ export default async function ListeAccompagnementsPage({
                 <th className="px-3 py-2 text-left font-medium">Type</th>
                 <th className="px-3 py-2 text-left font-medium">Date d&apos;entrée</th>
                 <th className="px-3 py-2 text-left font-medium">Date de sortie</th>
-                <th className="px-3 py-2 text-left font-medium">Référent</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -136,19 +138,16 @@ export default async function ListeAccompagnementsPage({
               {accompagnements.map((a) => (
                 <tr key={a.id} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="px-3 py-2 font-medium text-blue-700">
-                    {a.person.nom.toUpperCase()} {a.person.prenom}
+                    {a.person.nom.toUpperCase()} {capitaliserPrenom(a.person.prenom)}
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex gap-1">
-                      {a.suiviEI ? (
-                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">EI</span>
-                      ) : (
-                        <>
-                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">FSE+</span>
-                          {a.suiviASID && (
-                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">ASID</span>
-                          )}
-                        </>
+                    <div className="flex gap-1 flex-wrap">
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">FSE+</span>
+                      {a.suiviASID && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">ASID</span>
+                      )}
+                      {a.estBrouillon && (
+                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">Dossier à compléter</span>
                       )}
                     </div>
                   </td>
@@ -160,14 +159,18 @@ export default async function ListeAccompagnementsPage({
                       <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">En cours</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {a.referent ? `${a.referent.nom} ${a.referent.prenom}` : '—'}
-                  </td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      <Link href={`/accompagnement/${a.id}`}>
-                        <Button variant="outline" size="sm">Voir</Button>
-                      </Link>
+                    <div className="flex items-center gap-0.5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href={`/accompagnement/${a.id}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent>Voir</TooltipContent>
+                      </Tooltip>
                       {isTS && (
                         <BoutonSupprimerAccompagnement id={a.id} />
                       )}

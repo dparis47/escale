@@ -5,26 +5,38 @@ import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
 import { FormulaireNouveauFSE } from '@/components/accompagnement/formulaire-nouveau-fse'
 
-export default async function NouveauFSEPage() {
+export default async function NouveauFSEPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ personId?: string }>
+}) {
   const session = await auth()
   if (!session) redirect('/login')
   if (session.user.role !== 'TRAVAILLEUR_SOCIAL') redirect('/accompagnement')
 
-  const referents = await prisma.user.findMany({
-    where:   { role: 'TRAVAILLEUR_SOCIAL' },
-    select:  { id: true, nom: true, prenom: true },
-    orderBy: { nom: 'asc' },
-  })
+  const params = await searchParams
+  let personneInitiale: { id: number; nom: string; prenom: string } | null = null
+
+  if (params.personId) {
+    const pid = Number(params.personId)
+    if (!isNaN(pid)) {
+      const p = await prisma.person.findFirst({
+        where: { id: pid, deletedAt: null },
+        select: { id: true, nom: true, prenom: true },
+      })
+      if (p) personneInitiale = p
+    }
+  }
 
   return (
     <main className="container mx-auto max-w-2xl px-4 py-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Nouveau suivi FSE+</h1>
-        <Link href="/accompagnement">
+        <Link href={personneInitiale ? `/personnes/${personneInitiale.id}` : '/accompagnement'}>
           <Button variant="ghost">← Retour</Button>
         </Link>
       </div>
-      <FormulaireNouveauFSE referents={referents} />
+      <FormulaireNouveauFSE personneInitiale={personneInitiale} />
     </main>
   )
 }

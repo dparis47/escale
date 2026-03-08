@@ -27,7 +27,6 @@ export const schemaCreerPersonne = z.object({
   telephone:         z.string().max(20).optional(),
   mobile:            z.string().max(20).optional(),
   email:             schemaEmail,
-  dateActualisation: schemaDate.optional(),
 
   // Santé
   css:                 z.boolean().default(false),

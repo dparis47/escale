@@ -1,29 +1,28 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { THEMES_ATELIER_FR } from '@/schemas/atelier'
 
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
 
-  const [themesStandards, themesAutre] = await Promise.all([
-    prisma.actionCollective.findMany({
-      where:    { deletedAt: null, theme: { not: 'AUTRE' } },
-      select:   { theme: true },
-      distinct: ['theme'],
-    }),
-    prisma.actionCollective.findMany({
-      where:    { deletedAt: null, theme: 'AUTRE', themeAutre: { not: null } },
-      select:   { themeAutre: true },
-      distinct: ['themeAutre'],
-    }),
-  ])
+  // Retourner tous les thèmes actifs groupés par catégorie
+  const categoriesDB = await prisma.categorieAtelier.findMany({
+    where: { deletedAt: null },
+    include: {
+      themes: {
+        where: { deletedAt: null },
+        orderBy: { ordre: 'asc' },
+        select: { nom: true },
+      },
+    },
+    orderBy: { ordre: 'asc' },
+  })
 
-  const noms = [
-    ...themesStandards.map((r) => THEMES_ATELIER_FR[r.theme]),
-    ...themesAutre.map((r) => r.themeAutre as string),
-  ].sort((a, b) => a.localeCompare(b, 'fr'))
+  const categories = categoriesDB.map((c) => ({
+    nom: c.nom,
+    themes: c.themes.map((t) => t.nom),
+  }))
 
-  return NextResponse.json({ noms })
+  return NextResponse.json({ categories })
 }

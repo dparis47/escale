@@ -98,6 +98,24 @@ export async function POST(request: Request) {
         `UPDATE "Demarches" SET "atelierNoms" = $1::text[] WHERE "visitId" = $2`,
         atelierNoms, visite.id,
       )
+
+      // Auto-créer une ActionCollective pour chaque nouvel atelier saisi
+      const themeFallback = await prisma.themeAtelierRef.findFirst({
+        where: { deletedAt: null },
+        orderBy: { id: 'asc' },
+      })
+      if (themeFallback) {
+        for (const nom of atelierNoms) {
+          const existe = await prisma.actionCollective.findFirst({
+            where: { themeAutre: nom, deletedAt: null },
+          })
+          if (!existe) {
+            await prisma.actionCollective.create({
+              data: { themeId: themeFallback.id, themeAutre: nom, date: new Date() },
+            })
+          }
+        }
+      }
     }
 
     if (partenaires && partenaires.length > 0) {
@@ -105,6 +123,23 @@ export async function POST(request: Request) {
         `UPDATE "Visit" SET "partenaires" = $1::text[] WHERE id = $2`,
         partenaires, visite.id,
       )
+    }
+
+    // Auto-création du dossier individuel (SuiviEI) si la personne n'en a pas encore
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existeDI = await (prisma as any).suiviEI.findFirst({
+      where: {
+        accompagnement: { personId: resolvedPersonId, deletedAt: null },
+      },
+      select: { id: true },
+    })
+    if (!existeDI) {
+      const accompDI = await prisma.accompagnement.create({
+        data: { personId: resolvedPersonId, dateEntree: parseISO(date) },
+      })
+      await prisma.demarches.create({ data: { accompagnementId: accompDI.id } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).suiviEI.create({ data: { accompagnementId: accompDI.id } })
     }
 
     return NextResponse.json(visite, { status: 201 })

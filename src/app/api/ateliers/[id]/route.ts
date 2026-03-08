@@ -20,6 +20,8 @@ export async function GET(_request: Request, { params }: Params) {
   const atelier = await prisma.actionCollective.findFirst({
     where: { id, deletedAt: null },
     include: {
+      themeRef: { include: { categorie: true } },
+      prestataire: true,
       participants: {
         where:   { deletedAt: null },
         include: { person: { select: { id: true, nom: true, prenom: true } } },
@@ -56,17 +58,17 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ erreur: 'Données invalides', details: parsed.error.flatten() }, { status: 422 })
   }
 
-  const { theme, themeAutre, prestataire, lieu, date, notes } = parsed.data
+  const { themeId, themeAutre, prestataireId, lieu, date, notes } = parsed.data
 
   const maj = await prisma.actionCollective.update({
     where: { id },
     data: {
-      ...(theme       !== undefined ? { theme }                                                             : {}),
-      ...(themeAutre  !== undefined ? { themeAutre: themeAutre || null }                                                        : {}),
-      ...(prestataire !== undefined ? { prestataire: prestataire || null }                                  : {}),
-      ...(lieu        !== undefined ? { lieu:        lieu        || null }                                  : {}),
-      ...(date        !== undefined ? { date: parseISO(date) }                                              : {}),
-      ...(notes       !== undefined ? { notes:       notes       || null }                                  : {}),
+      ...(themeId       !== undefined ? { themeId }                        : {}),
+      ...(themeAutre    !== undefined ? { themeAutre: themeAutre || null }  : {}),
+      ...(prestataireId !== undefined ? { prestataireId }                  : {}),
+      ...(lieu          !== undefined ? { lieu: lieu || null }             : {}),
+      ...(date          !== undefined ? { date: parseISO(date) }          : {}),
+      ...(notes         !== undefined ? { notes: notes || null }          : {}),
     },
   })
 

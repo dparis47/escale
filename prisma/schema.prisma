@@ -68,24 +68,6 @@ enum NiveauFormation {
   DEUG_PLUS
 }
 
-enum ThemeAtelier {
-  COURS_INFORMATIQUE
-  CINEMA
-  SOCIO_ESTHETIQUE
-  RANDONNEE
-  SPORT
-  PISCINE
-  BUDGET
-  SANTE_ENVIRONNEMENT
-  CUISINE
-  CUISINE_ANTI_GASPI
-  MEDIATION_EQUINE
-  ATELIER_CREATIF
-  CULTUREL
-  NOEL
-  PROJET_CINEMA
-  AUTRE
-}
 
 enum SujetEntretien {
   SANTE
@@ -110,9 +92,6 @@ model User {
 
   visitesSaisies   Visit[] @relation("VisitSaisiePar")
   visitesModifiees Visit[] @relation("VisitModifiePar")
-
-  accompagnements Accompagnement[] @relation("ReferentAccompagnement")
-  suiviASID       SuiviASID[]      @relation("ReferentSuiviASID")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -179,6 +158,7 @@ model Person {
   contratsTravail        ContratTravail[]
   accompagnements        Accompagnement[]
   participationsAteliers ParticipationAtelier[]
+  cvs                    Cv[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -370,8 +350,6 @@ model Accompagnement {
   id         Int    @id @default(autoincrement())
   personId   Int
   person     Person @relation(fields: [personId], references: [id])
-  referentId Int?
-  referent   User?  @relation("ReferentAccompagnement", fields: [referentId], references: [id])
 
   dateEntree DateTime  @db.Date
   dateSortie DateTime? @db.Date
@@ -409,6 +387,9 @@ model Accompagnement {
   logementExclusion Boolean @default(false)
 
   observation String?
+
+  // true = créé automatiquement (import Excel) — à compléter par un travailleur social
+  estBrouillon Boolean @default(false)
 
   // Relations
   demarches  Demarches?
@@ -463,8 +444,6 @@ model SuiviASID {
   accompagnementId Int            @unique
   accompagnement   Accompagnement @relation(fields: [accompagnementId], references: [id])
 
-  referentId     Int?
-  referent       User?   @relation("ReferentSuiviASID", fields: [referentId], references: [id])
   referentNom    String?
   referentPrenom String?
 
@@ -491,7 +470,6 @@ model SuiviASID {
   observation String?
 
   prescriptions FichePrescriptionASID[]
-  cvs           CvASID[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -511,18 +489,6 @@ model FichePrescriptionASID {
   createdAt DateTime @default(now())
 }
 
-// CVs et lettres de motivation joints à un suivi ASID (PDF ou Word, plusieurs possibles)
-model CvASID {
-  id               Int       @id @default(autoincrement())
-  accompagnementId Int
-  suiviASID        SuiviASID @relation(fields: [accompagnementId], references: [id])
-
-  nom     String // nom original du fichier
-  contenu Bytes // fichier stocké en base
-
-  createdAt DateTime @default(now())
-}
-
 // ============================================================
 // SUIVI ESPACE D'INSERTION (EI)
 // ============================================================
@@ -533,18 +499,21 @@ model SuiviEI {
   accompagnement   Accompagnement @relation(fields: [accompagnementId], references: [id])
 
   observation String?
-  cvs         CvEI[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 }
 
-// CVs et lettres de motivation joints à un suivi EI
-model CvEI {
-  id        Int     @id @default(autoincrement())
-  suiviEIId Int
-  suiviEI   SuiviEI @relation(fields: [suiviEIId], references: [id])
+// ============================================================
+// CV / LETTRES DE MOTIVATION (commun à tous les accompagnements)
+// ============================================================
+
+// CV et lettres de motivation liés à une personne (accessibles depuis tous ses accompagnements)
+model Cv {
+  id       Int    @id @default(autoincrement())
+  personId Int
+  person   Person @relation(fields: [personId], references: [id])
 
   nom     String // nom original du fichier
   contenu Bytes  // fichier stocké en base
@@ -572,16 +541,63 @@ model Entretien {
 // ACTIONS COLLECTIVES (ATELIERS)
 // ============================================================
 
+model CategorieAtelier {
+  id      Int    @id @default(autoincrement())
+  nom     String @unique
+  couleur String @default("gray")
+  ordre   Int    @default(0)
+
+  themes ThemeAtelierRef[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model ThemeAtelierRef {
+  id          Int              @id @default(autoincrement())
+  nom         String
+  categorieId Int
+  categorie   CategorieAtelier @relation(fields: [categorieId], references: [id])
+  ordre       Int              @default(0)
+
+  ateliers ActionCollective[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([categorieId, nom])
+}
+
+model Prestataire {
+  id  Int    @id @default(autoincrement())
+  nom String @unique
+
+  ateliers ActionCollective[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
 model ActionCollective {
-  id          Int          @id @default(autoincrement())
-  theme       ThemeAtelier
-  themeAutre  String?
-  prestataire String?
-  lieu        String?
-  date        DateTime     @db.Date
-  notes       String?
+  id Int @id @default(autoincrement())
+
+  themeId  Int
+  themeRef ThemeAtelierRef @relation(fields: [themeId], references: [id])
+
+  themeAutre String?
+
+  prestataireId Int?
+  prestataire   Prestataire? @relation(fields: [prestataireId], references: [id])
+
+  lieu  String?
+  date  DateTime @db.Date
+  notes String?
 
   participants ParticipationAtelier[]
+  fichiers     FichierEmargement[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -602,12 +618,13 @@ model ParticipationAtelier {
 }
 
 model FichierEmargement {
-  id        Int          @id @default(autoincrement())
-  theme     ThemeAtelier
-  nom       String
-  contenu   Bytes
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id                 Int              @id @default(autoincrement())
+  actionCollectiveId Int
+  actionCollective   ActionCollective @relation(fields: [actionCollectiveId], references: [id])
+  nom                String
+  contenu            Bytes
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }
 
 model CompteurPartenaire {

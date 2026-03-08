@@ -139,12 +139,12 @@ export default async function BilanArsPage({
             <Link href="/bilans" className="hover:underline">Bilans</Link>
             {' / '}ARS
           </div>
-          <h1 className="text-2xl font-bold">Bilan ARS — {annee}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Bilan ARS — {annee}</h1>
+            <BoutonExport type="ars" annee={annee} />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
-          <BoutonExport type="ars" annee={annee} />
-        </div>
+        <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
       </div>
 
       <p className="text-sm text-muted-foreground">

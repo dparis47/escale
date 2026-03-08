@@ -139,12 +139,12 @@ export default async function BilanCpamPage({
             <Link href="/bilans" className="hover:underline">Bilans</Link>
             {' / '}CPAM
           </div>
-          <h1 className="text-2xl font-bold">Bilan CPAM — {annee}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Bilan CPAM — {annee}</h1>
+            <BoutonExport type="cpam" annee={annee} />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
-          <BoutonExport type="cpam" annee={annee} />
-        </div>
+        <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
       </div>
 
       <p className="text-sm text-muted-foreground">

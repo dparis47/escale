@@ -10,12 +10,12 @@ const TYPES_ACCEPTES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]
 
-async function getSuiviASIDId(accompagnementId: number) {
-  const suivi = await prisma.suiviASID.findUnique({
-    where:  { accompagnementId },
-    select: { id: true },
+async function getPersonId(accompagnementId: number) {
+  const acc = await prisma.accompagnement.findUnique({
+    where:  { id: accompagnementId },
+    select: { personId: true },
   })
-  return suivi?.id ?? null
+  return acc?.personId ?? null
 }
 
 export async function GET(_request: Request, { params }: Params) {
@@ -27,11 +27,11 @@ export async function GET(_request: Request, { params }: Params) {
   const accompagnementId = Number(idStr)
   if (isNaN(accompagnementId)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
 
-  const suiviASIDId = await getSuiviASIDId(accompagnementId)
-  if (suiviASIDId === null) return NextResponse.json({ erreur: 'Suivi ASID introuvable' }, { status: 404 })
+  const personId = await getPersonId(accompagnementId)
+  if (personId === null) return NextResponse.json({ erreur: 'Accompagnement introuvable' }, { status: 404 })
 
-  const cvs = await prisma.cvASID.findMany({
-    where:   { accompagnementId: suiviASIDId },
+  const cvs = await prisma.cv.findMany({
+    where:   { personId },
     select:  { id: true, nom: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   })
@@ -48,8 +48,8 @@ export async function POST(request: Request, { params }: Params) {
   const accompagnementId = Number(idStr)
   if (isNaN(accompagnementId)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
 
-  const suiviASIDId = await getSuiviASIDId(accompagnementId)
-  if (suiviASIDId === null) return NextResponse.json({ erreur: 'Suivi ASID introuvable' }, { status: 404 })
+  const personId = await getPersonId(accompagnementId)
+  if (personId === null) return NextResponse.json({ erreur: 'Accompagnement introuvable' }, { status: 404 })
 
   let formData: FormData
   try { formData = await request.formData() } catch {
@@ -66,8 +66,8 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const contenu = Buffer.from(await fichier.arrayBuffer())
-  const cv = await prisma.cvASID.create({
-    data:   { accompagnementId: suiviASIDId, nom: fichier.name, contenu },
+  const cv = await prisma.cv.create({
+    data:   { personId, nom: fichier.name, contenu },
     select: { id: true, nom: true, createdAt: true },
   })
 

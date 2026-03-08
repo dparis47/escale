@@ -4,8 +4,6 @@ import { Prisma }        from '@prisma/client'
 import { auth }          from '@/auth'
 import { prisma }        from '@/lib/prisma'
 import { parseISO }      from '@/lib/dates'
-import { THEMES_ATELIER_FR } from '@/schemas/atelier'
-import type { ThemeAtelier } from '@prisma/client'
 
 function trancheAge(dateNaissance: Date | null, annee: number): string {
   if (!dateNaissance) return 'Non renseigné'
@@ -82,22 +80,23 @@ export async function GET(req: Request) {
 
   const tranchesRows = TRANCHES_ORDRE.map((t) => ({ Tranche: t, Nombre: tranchesMap.get(t) ?? 0 }))
 
-  type CompteurRow = { theme: string; nbSeances: bigint; nbParticipants: bigint }
+  type CompteurRow = { themeNom: string; nbSeances: bigint; nbParticipants: bigint }
   const atelierRows = await prisma.$queryRaw<CompteurRow[]>(Prisma.sql`
     SELECT
-      ac.theme,
+      t.nom AS "themeNom",
       COUNT(DISTINCT ac.id)           AS "nbSeances",
       COUNT(DISTINCT pa."personId") FILTER (WHERE pa."deletedAt" IS NULL) AS "nbParticipants"
     FROM "ActionCollective" ac
+    JOIN "ThemeAtelierRef" t ON t.id = ac."themeId"
     LEFT JOIN "ParticipationAtelier" pa ON pa."actionCollectiveId" = ac.id
     WHERE ac."deletedAt" IS NULL
       AND ac.date BETWEEN ${debut} AND ${fin}
-    GROUP BY ac.theme
-    ORDER BY ac.theme
+    GROUP BY t.nom
+    ORDER BY t.nom
   `)
 
   const ateliersExcelRows = atelierRows.map((r) => ({
-    Thème:        THEMES_ATELIER_FR[r.theme as ThemeAtelier] ?? r.theme,
+    Thème:        r.themeNom,
     Séances:      Number(r.nbSeances),
     Participants: Number(r.nbParticipants),
   })).sort((a, b) => a.Thème.localeCompare(b.Thème, 'fr'))

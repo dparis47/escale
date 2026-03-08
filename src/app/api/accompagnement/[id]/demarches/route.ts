@@ -52,6 +52,25 @@ export async function PATCH(
       `UPDATE "Demarches" SET "atelierNoms" = $1::text[] WHERE id = $2`,
       atelierNoms, demarches.id,
     )
+
+    // Auto-créer une ActionCollective pour chaque nouvel atelier saisi, sans doublon
+    // Chercher un thème par défaut pour les ateliers saisis manuellement
+    const themeFallback = await prisma.themeAtelierRef.findFirst({
+      where: { deletedAt: null },
+      orderBy: { id: 'asc' },
+    })
+    if (themeFallback) {
+      for (const nom of atelierNoms) {
+        const existe = await prisma.actionCollective.findFirst({
+          where: { themeAutre: nom, deletedAt: null },
+        })
+        if (!existe) {
+          await prisma.actionCollective.create({
+            data: { themeId: themeFallback.id, themeAutre: nom, date: new Date() },
+          })
+        }
+      }
+    }
   }
 
   return NextResponse.json(demarches)

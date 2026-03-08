@@ -3,12 +3,10 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
-import { parseISO, formaterDateCourte } from '@/lib/dates'
+import { parseISO, formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { SelecteurAnnee } from '@/components/bilans/selecteur-annee'
 import { BoutonExport } from '@/components/bilans/bouton-export'
 import { Button } from '@/components/ui/button'
-import { THEMES_ATELIER_FR } from '@/lib/motifs'
-import type { ThemeAtelier } from '@prisma/client'
 
 const TYPE_CONTRAT_FR: Record<string, string> = {
   CDI:     'CDI',
@@ -226,8 +224,8 @@ export default async function BilanFranceTravailPage({
   ]
 
   // ── Requêtes parallèles ────────────────────────────────────────────────────
-  type AtelierStat = { theme: string; seances: bigint; personnes: bigint; presences: bigint }
-  type AtelierEmploiStat = { theme: string; personnes: bigint }
+  type AtelierStat = { themeNom: string; seances: bigint; personnes: bigint; presences: bigint }
+  type AtelierEmploiStat = { themeNom: string; personnes: bigint }
 
   const [
     ateliersStats,
@@ -241,11 +239,12 @@ export default async function BilanFranceTravailPage({
     // Ateliers par thème — tous visiteurs
     prisma.$queryRaw<AtelierStat[]>(Prisma.sql`
       SELECT
-        ac.theme,
+        t.nom AS "themeNom",
         COUNT(DISTINCT ac.id)::bigint AS seances,
         COUNT(DISTINCT v."personId")::bigint AS personnes,
         COUNT(v.id)::bigint AS presences
       FROM "ActionCollective" ac
+      JOIN "ThemeAtelierRef" t ON t.id = ac."themeId"
       LEFT JOIN "Visit" v
         ON  v.date        = ac.date
         AND v."deletedAt" IS NULL
@@ -256,15 +255,16 @@ export default async function BilanFranceTravailPage({
       WHERE ac."deletedAt" IS NULL
         AND ac.date >= ${debut}
         AND ac.date <= ${fin}
-      GROUP BY ac.theme
-      ORDER BY ac.theme
+      GROUP BY t.nom
+      ORDER BY t.nom
     `),
 
     // Ateliers — personnes emploi uniquement
     emploiPersonIds.length > 0
       ? prisma.$queryRaw<AtelierEmploiStat[]>(Prisma.sql`
-          SELECT ac.theme, COUNT(DISTINCT v."personId")::bigint AS personnes
+          SELECT t.nom AS "themeNom", COUNT(DISTINCT v."personId")::bigint AS personnes
           FROM "ActionCollective" ac
+          JOIN "ThemeAtelierRef" t ON t.id = ac."themeId"
           JOIN "Visit" v
             ON  v.date        = ac.date
             AND v."deletedAt" IS NULL
@@ -276,8 +276,8 @@ export default async function BilanFranceTravailPage({
           WHERE ac."deletedAt" IS NULL
             AND ac.date >= ${debut}
             AND ac.date <= ${fin}
-          GROUP BY ac.theme
-          ORDER BY ac.theme
+          GROUP BY t.nom
+          ORDER BY t.nom
         `)
       : Promise.resolve<AtelierEmploiStat[]>([]),
 
@@ -318,8 +318,8 @@ export default async function BilanFranceTravailPage({
     }),
   ])
 
-  const ateliersMap       = new Map(ateliersStats.map((r) => [r.theme, r]))
-  const ateliersEmploiMap = new Map(ateliersEmploiStats.map((r) => [r.theme, Number(r.personnes)]))
+  const ateliersMap       = new Map(ateliersStats.map((r) => [r.themeNom, r]))
+  const ateliersEmploiMap = new Map(ateliersEmploiStats.map((r) => [r.themeNom, Number(r.personnes)]))
 
   const totalAteliersSeances  = ateliersStats.reduce((acc, r) => acc + Number(r.seances), 0)
   const totalAteliersPersonnes = ateliersStats.reduce((acc, r) => acc + Number(r.personnes), 0)
@@ -332,7 +332,7 @@ export default async function BilanFranceTravailPage({
     INTERIM: contrats.filter((c) => c.type === 'INTERIM').length,
   }
 
-  const themesAvecAteliers = [...ateliersMap.keys()] as ThemeAtelier[]
+  const themesAvecAteliers = [...ateliersMap.keys()]
 
   // Suppress unused warning for ateliersEmploiMap (used in JSX below)
   void ateliersEmploiMap
@@ -347,12 +347,12 @@ export default async function BilanFranceTravailPage({
             <Link href="/bilans" className="hover:underline">Bilans</Link>
             {' / '}France Travail
           </div>
-          <h1 className="text-2xl font-bold">Bilan France Travail — {annee}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Bilan France Travail — {annee}</h1>
+            <BoutonExport type="france-travail" annee={annee} />
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
-          <BoutonExport type="france-travail" annee={annee} />
-        </div>
+        <SelecteurAnnee anneeMin={anneeMin} anneeMax={anneeActuelle} anneeSelectionnee={annee} />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -431,11 +431,11 @@ export default async function BilanFranceTravailPage({
                 </tr>
               </thead>
               <tbody>
-                {themesAvecAteliers.map((theme) => {
-                  const r = ateliersMap.get(theme)!
+                {themesAvecAteliers.map((themeNom) => {
+                  const r = ateliersMap.get(themeNom)!
                   return (
-                    <tr key={theme} className="border-t">
-                      <td className="px-4 py-2">{THEMES_ATELIER_FR[theme] ?? theme}</td>
+                    <tr key={themeNom} className="border-t">
+                      <td className="px-4 py-2">{themeNom}</td>
                       <td className="px-4 py-2 text-right">{Number(r.seances)}</td>
                       <td className="px-4 py-2 text-right">{Number(r.personnes)}</td>
                       <td className="px-4 py-2 text-right font-medium">{Number(r.presences)}</td>
@@ -588,8 +588,8 @@ export default async function BilanFranceTravailPage({
               </thead>
               <tbody>
                 {ateliersEmploiStats.map((r) => (
-                  <tr key={r.theme} className="border-t">
-                    <td className="px-4 py-2">{THEMES_ATELIER_FR[r.theme as ThemeAtelier] ?? r.theme}</td>
+                  <tr key={r.themeNom} className="border-t">
+                    <td className="px-4 py-2">{r.themeNom}</td>
                     <td className="px-4 py-2 text-right font-medium">{Number(r.personnes)}</td>
                   </tr>
                 ))}
@@ -671,7 +671,7 @@ export default async function BilanFranceTravailPage({
                 {contrats.map((c) => (
                   <tr key={c.id} className="border-t">
                     <td className="px-4 py-2 font-medium">
-                      {c.person.nom.toUpperCase()} {c.person.prenom}
+                      {c.person.nom.toUpperCase()} {capitaliserPrenom(c.person.prenom)}
                     </td>
                     <td className="px-4 py-2">{TYPE_CONTRAT_FR[c.type] ?? c.type}</td>
                     <td className="px-4 py-2">{formaterDateCourte(c.dateDebut)}</td>
