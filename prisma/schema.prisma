@@ -15,6 +15,7 @@ enum Role {
   ACCUEIL
   TRAVAILLEUR_SOCIAL
   DIRECTION
+  ADMIN
 }
 
 enum Genre {
@@ -89,9 +90,11 @@ model User {
   email    String @unique
   password String
   role     Role
+  permissionsOverrides Json?
 
-  visitesSaisies   Visit[] @relation("VisitSaisiePar")
-  visitesModifiees Visit[] @relation("VisitModifiePar")
+  visitesSaisies   Visit[]    @relation("VisitSaisiePar")
+  visitesModifiees Visit[]    @relation("VisitModifiePar")
+  auditLogs        AuditLog[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -314,8 +317,9 @@ model Demarches {
   parentaliteAutreInput     String?
 
   // ATELIERS DE REDYNAMISATION
-  atelierParticipation Boolean  @default(false)
-  atelierNoms          String[]
+  atelierParticipation Boolean           @default(false)
+  actionCollectiveId   Int?
+  actionCollective     ActionCollective? @relation(fields: [actionCollectiveId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -598,6 +602,7 @@ model ActionCollective {
 
   participants ParticipationAtelier[]
   fichiers     FichierEmargement[]
+  demarches    Demarches[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -650,4 +655,23 @@ model PersonnePartenaire {
   deletedAt DateTime?
 
   @@index([date, partenaire])
+}
+
+// ============================================================
+// AUDIT
+// ============================================================
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // "creer", "modifier", "supprimer", "restaurer"
+  entite    String   // "visite", "personne", "accompagnement", "atelier", "utilisateur"
+  entiteId  Int
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([entite, entiteId])
+  @@index([userId])
+  @@index([createdAt])
 }

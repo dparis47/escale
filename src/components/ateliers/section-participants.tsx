@@ -145,7 +145,7 @@ export function SectionParticipants({ atelierId, participants: init }: Props) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="text-muted-foreground hover:text-foreground"
                 onClick={() => supprimerParticipant(p.id)}
                 disabled={enCours}
               >

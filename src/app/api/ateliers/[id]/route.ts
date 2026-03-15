@@ -3,13 +3,15 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseISO } from '@/lib/dates'
 import { schemaMajAtelier } from '@/schemas/atelier'
+import { peutAcceder } from '@/lib/permissions'
+import { logAudit } from '@/lib/audit'
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: Request, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role === 'ACCUEIL') {
+  if (!peutAcceder(session, 'ateliers')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -24,7 +26,13 @@ export async function GET(_request: Request, { params }: Params) {
       prestataire: true,
       participants: {
         where:   { deletedAt: null },
-        include: { person: { select: { id: true, nom: true, prenom: true } } },
+        include: { person: { select: {
+          id: true, nom: true, prenom: true,
+          accompagnements: {
+            where: { deletedAt: null, dateSortie: null },
+            select: { id: true, suiviASID: { select: { id: true } } },
+          },
+        } } },
         orderBy: [{ person: { nom: 'asc' } }, { person: { prenom: 'asc' } }],
       },
     },
@@ -37,7 +45,7 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+  if (!peutAcceder(session, 'ateliers', 'creer_modifier')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -72,13 +80,20 @@ export async function PATCH(request: Request, { params }: Params) {
     },
   })
 
+  logAudit({
+    userId: Number(session.user.id),
+    action: 'modifier',
+    entite: 'atelier',
+    entiteId: id,
+  })
+
   return NextResponse.json(maj)
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role === 'ACCUEIL') {
+  if (!peutAcceder(session, 'ateliers', 'supprimer')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -90,5 +105,13 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (!atelier) return NextResponse.json({ erreur: 'Atelier introuvable' }, { status: 404 })
 
   await prisma.actionCollective.update({ where: { id }, data: { deletedAt: new Date() } })
+
+  logAudit({
+    userId: Number(session.user.id),
+    action: 'supprimer',
+    entite: 'atelier',
+    entiteId: id,
+  })
+
   return new NextResponse(null, { status: 204 })
 }

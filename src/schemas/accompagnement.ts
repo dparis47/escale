@@ -287,7 +287,7 @@ export const schemaMajDemarches = z.object({
 
   // ATELIERS DE REDYNAMISATION
   atelierParticipation:       z.boolean(),
-  atelierNoms:                z.array(z.string().max(200)).optional(),
+  actionCollectiveId:         z.number().int().positive().nullish(),
 }).partial()
 
 export type MajDemarchesInput = z.infer<typeof schemaMajDemarches>

@@ -105,7 +105,8 @@ export type DemarcheChamps = {
 
   // ATELIERS DE REDYNAMISATION
   atelierParticipation:      boolean
-  atelierNoms:               string[]
+  actionCollectiveId:        number | null
+  themeAtelierId:            number | null
 }
 
 // ─── Types des nœuds ─────────────────────────────────────────────────────────
@@ -122,18 +123,13 @@ type ChampsNombre = {
   [K in keyof DemarcheChamps]: DemarcheChamps[K] extends number | null ? K : never
 }[keyof DemarcheChamps]
 
-type ChampsTableau = {
-  [K in keyof DemarcheChamps]: DemarcheChamps[K] extends string[] ? K : never
-}[keyof DemarcheChamps]
-
-/** Case à cocher. Peut avoir un champ nombre, texte ou tableau lié (affiché quand la case est cochée). */
+/** Case à cocher. Peut avoir un champ nombre ou texte lié (affiché quand la case est cochée). */
 export type NoeudFeuille = {
   type:          'feuille'
   champ:         ChampsBool
   label:         string
   champNombre?:  ChampsNombre
   champTexte?:   ChampsTexte
-  champTableau?: ChampsTableau
 }
 
 /** Input texte autonome (sans case à cocher parente). */
@@ -245,7 +241,8 @@ export const DEMARCHE_VIDE: DemarcheChamps = {
   parentaliteMissionLocale:   false,
   parentaliteAutreInput:      null,
   atelierParticipation:       false,
-  atelierNoms:                [],
+  actionCollectiveId:         null,
+  themeAtelierId:             null,
 }
 
 // ─── Arbre ────────────────────────────────────────────────────────────────────
@@ -456,10 +453,7 @@ export const ARBRE_DEMARCHES: NoeudTheme[] = [
   {
     type: 'theme', id: 'ateliers', label: 'ATELIERS DE REDYNAMISATION',
     enfants: [
-      {
-        type: 'feuille', champ: 'atelierParticipation', label: "Participation à un atelier",
-        champTableau: 'atelierNoms',
-      },
+      { type: 'feuille', champ: 'atelierParticipation', label: "Participation à un atelier" },
     ],
   },
 ]
@@ -477,7 +471,6 @@ export function videChampsDemarche(
       (result[n.champ] as boolean) = false
       if (n.champNombre)  (result[n.champNombre]  as null)     = null
       if (n.champTexte)   (result[n.champTexte]   as null)     = null
-      if (n.champTableau) (result[n.champTableau] as string[]) = []
     } else if (n.type === 'texte') {
       (result[n.champ] as null) = null
     } else {
@@ -547,12 +540,7 @@ export function themesAvecFeuilles(
   function walkFeuilles(n: Noeud, labels: string[]) {
     if (n.type === 'feuille') {
       if (champs[n.champ] === true) {
-        if (n.champTableau) {
-          // Pour les tableaux (ex. atelierNoms), afficher les valeurs plutôt que le label parent
-          labels.push(...(champs[n.champTableau] as string[]))
-        } else {
-          labels.push(n.label)
-        }
+        labels.push(n.label)
       }
     } else if (n.type === 'section') {
       n.enfants.forEach((e) => walkFeuilles(e, labels))
@@ -613,7 +601,7 @@ export function matchFiltresDemarches(
 export type ColonneExportDemarche = {
   header: string
   champ:  string
-  type:   'bool' | 'nombre' | 'texte' | 'tableau'
+  type:   'bool' | 'nombre' | 'texte'
 }
 
 export function colonnesDemarchesExport(): ColonneExportDemarche[] {
@@ -628,9 +616,6 @@ export function colonnesDemarchesExport(): ColonneExportDemarche[] {
         }
         if (n.champTexte) {
           colonnes.push({ header: `${theme.label} — ${n.label} (texte)`, champ: n.champTexte, type: 'texte' })
-        }
-        if (n.champTableau) {
-          colonnes.push({ header: `${theme.label} — ${n.label} (liste)`, champ: n.champTableau, type: 'tableau' })
         }
       } else if (n.type === 'texte') {
         colonnes.push({ header: `${theme.label} — ${n.label}`, champ: n.champ, type: 'texte' })
@@ -731,6 +716,7 @@ export function fromPrisma(obj: Record<string, unknown>): DemarcheChamps {
     parentaliteMissionLocale:   bool('parentaliteMissionLocale'),
     parentaliteAutreInput:      str('parentaliteAutreInput'),
     atelierParticipation:       bool('atelierParticipation'),
-    atelierNoms:                Array.isArray(obj['atelierNoms']) ? (obj['atelierNoms'] as string[]) : [],
+    actionCollectiveId:         num('actionCollectiveId'),
+    themeAtelierId:             (obj.actionCollective as Record<string, unknown> | null)?.themeId as number | null ?? null,
   }
 }

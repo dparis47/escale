@@ -3,13 +3,15 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseISO } from '@/lib/dates'
 import { schemaCreerAtelier } from '@/schemas/atelier'
+import { peutAcceder } from '@/lib/permissions'
+import { logAudit } from '@/lib/audit'
 
 const PAR_PAGE = 50
 
 export async function GET(request: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role === 'ACCUEIL') {
+  if (!peutAcceder(session, 'ateliers')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -50,7 +52,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+  if (!peutAcceder(session, 'ateliers', 'creer_modifier')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -84,6 +86,14 @@ export async function POST(request: Request) {
       date:          parseISO(s.date),
       notes:         notes         || null,
     })),
+  })
+
+  logAudit({
+    userId: Number(session.user.id),
+    action: 'creer',
+    entite: 'atelier',
+    entiteId: 0,
+    details: `Création de ${seances.length} séance(s)`,
   })
 
   return NextResponse.json({ count: seances.length }, { status: 201 })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { parseISO, formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { fromPrisma, themesActifs, ARBRE_DEMARCHES } from '@/lib/demarches'
 import type { Noeud } from '@/lib/demarches'
@@ -18,7 +19,7 @@ function collectFeuilles(noeuds: Noeud[]): { champ: string; label: string }[] {
 export async function GET(req: Request) {
   const session = await auth()
   if (!session) return new NextResponse(null, { status: 401 })
-  if (session.user.role === 'ACCUEIL') return new NextResponse(null, { status: 403 })
+  if (!peutAcceder(session, 'bilans', 'exporter')) return new NextResponse(null, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const annee = Number(searchParams.get('annee') ?? new Date().getFullYear())

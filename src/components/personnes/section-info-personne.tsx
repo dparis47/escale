@@ -19,6 +19,7 @@ import {
   ORIENTE_PAR_FR,
 } from '@/schemas/person'
 import { formaterDateISO, formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
+import { formaterTelephone, formaterNumeroSecu } from '@/lib/format'
 import { useModeEdition, useRegistrerSauvegarde } from '@/contexts/sauvegarde-accompagnement'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -122,15 +123,15 @@ export function SectionInfoPersonne({ personne }: Props) {
   const [nationalite,   setNationalite]   = useState(personne.nationalite ?? '')
 
   const [adresse,           setAdresse]           = useState(personne.adresse           ?? '')
-  const [telephone,         setTelephone]         = useState(personne.telephone         ?? '')
-  const [mobile,            setMobile]            = useState(personne.mobile            ?? '')
+  const [telephone,         setTelephone]         = useState(formaterTelephone(personne.telephone) ?? '')
+  const [mobile,            setMobile]            = useState(formaterTelephone(personne.mobile)    ?? '')
   const [email,             setEmail]             = useState(personne.email             ?? '')
 
   const [css,                 setCss]                 = useState(personne.css)
   const [rqth,                setRqth]                = useState(personne.rqth)
   const [invalidite,          setInvalidite]          = useState(personne.invalidite)
   const [categorieInvalidite, setCategorieInvalidite] = useState(personne.categorieInvalidite ?? '')
-  const [numeroSecu,          setNumeroSecu]          = useState(personne.numeroSecu ?? '')
+  const [numeroSecu,          setNumeroSecu]          = useState(formaterNumeroSecu(personne.numeroSecu) ?? '')
 
   const [numeroFT,          setNumeroFT]          = useState(personne.numeroFT          ?? '')
   const [dateInscriptionFT, setDateInscriptionFT] = useState(toInputDate(personne.dateInscriptionFT))
@@ -162,14 +163,14 @@ export function SectionInfoPersonne({ personne }: Props) {
       setDateNaissance(toInputDate(personne.dateNaissance))
       setNationalite(personne.nationalite ?? '')
       setAdresse(personne.adresse ?? '')
-      setTelephone(personne.telephone ?? '')
-      setMobile(personne.mobile ?? '')
+      setTelephone(formaterTelephone(personne.telephone) ?? '')
+      setMobile(formaterTelephone(personne.mobile) ?? '')
       setEmail(personne.email ?? '')
       setCss(personne.css)
       setRqth(personne.rqth)
       setInvalidite(personne.invalidite)
       setCategorieInvalidite(personne.categorieInvalidite ?? '')
-      setNumeroSecu(personne.numeroSecu ?? '')
+      setNumeroSecu(formaterNumeroSecu(personne.numeroSecu) ?? '')
       setNumeroFT(personne.numeroFT ?? '')
       setDateInscriptionFT(toInputDate(personne.dateInscriptionFT))
       setCodepersonnelFT(personne.codepersonnelFT ?? '')
@@ -279,8 +280,8 @@ export function SectionInfoPersonne({ personne }: Props) {
         {/* Contact */}
         <SectionTitre>Contact</SectionTitre>
         <Ligne label="Adresse"             valeur={personne.adresse} />
-        <Ligne label="Mobile"              valeur={personne.mobile} />
-        <Ligne label="Téléphone"           valeur={personne.telephone} />
+        <Ligne label="Mobile"              valeur={formaterTelephone(personne.mobile)} />
+        <Ligne label="Téléphone"           valeur={formaterTelephone(personne.telephone)} />
         <Ligne label="Email"               valeur={personne.email} />
 
         {/* Santé */}
@@ -291,7 +292,7 @@ export function SectionInfoPersonne({ personne }: Props) {
         {personne.invalidite && (
           <Ligne label="Catégorie invalidité" valeur={personne.categorieInvalidite} />
         )}
-        <Ligne label="N° de sécurité sociale" valeur={personne.numeroSecu} />
+        <Ligne label="N° de sécurité sociale" valeur={formaterNumeroSecu(personne.numeroSecu)} />
 
         {/* France Travail */}
         <SectionTitre>France Travail</SectionTitre>
@@ -378,10 +379,10 @@ export function SectionInfoPersonne({ personne }: Props) {
           </Champ>
           <div className="grid grid-cols-2 gap-4">
             <Champ label="Mobile">
-              <Input value={mobile} onChange={(e) => setMobile(e.target.value)} maxLength={20} placeholder="06…" />
+              <Input value={mobile} onChange={(e) => setMobile(formaterTelephone(e.target.value) ?? '')} maxLength={14} placeholder="06 12 34 56 78" />
             </Champ>
             <Champ label="Téléphone">
-              <Input value={telephone} onChange={(e) => setTelephone(e.target.value)} maxLength={20} placeholder="05…" />
+              <Input value={telephone} onChange={(e) => setTelephone(formaterTelephone(e.target.value) ?? '')} maxLength={14} placeholder="05 12 34 56 78" />
             </Champ>
           </div>
           <Champ label="Email">
@@ -412,7 +413,7 @@ export function SectionInfoPersonne({ personne }: Props) {
             )}
           </div>
           <Champ label="N° de sécurité sociale">
-            <Input value={numeroSecu} onChange={(e) => setNumeroSecu(e.target.value)} maxLength={50} placeholder="X XX XX XX XXX XXX XX" />
+            <Input value={numeroSecu} onChange={(e) => setNumeroSecu(formaterNumeroSecu(e.target.value) ?? '')} maxLength={21} placeholder="1 85 05 78 006 084 36" />
           </Champ>
         </div>
       </section>

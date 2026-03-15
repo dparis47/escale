@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -8,7 +9,7 @@ type Params = { params: Promise<{ id: string }> }
 export async function GET(_req: Request, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role === 'ACCUEIL') {
+  if (!peutAcceder(session, 'ateliers', 'creer_modifier')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -31,7 +32,7 @@ export async function GET(_req: Request, { params }: Params) {
 export async function DELETE(_req: Request, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role === 'ACCUEIL') {
+  if (!peutAcceder(session, 'ateliers', 'creer_modifier')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 

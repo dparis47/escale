@@ -79,7 +79,7 @@ export function SectionCVLM({ accompagnementId, cvs: cvsInit }: Props) {
           {modeEdition && (
             <Button
               variant="ghost" size="sm"
-              className="text-destructive hover:text-destructive"
+              className="text-muted-foreground hover:text-foreground"
               onClick={() => supprimerCv(cv.id, cv.nom)}
               disabled={cvEnCours}
             >

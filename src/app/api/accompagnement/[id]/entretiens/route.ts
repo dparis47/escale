@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseISO } from '@/lib/dates'
 import { schemaAjouterEntretien } from '@/schemas/accompagnement'
+import { peutAcceder } from '@/lib/permissions'
 
 export async function GET(
   _request: Request,
@@ -10,7 +11,7 @@ export async function GET(
 ) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role === 'ACCUEIL') return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
+  if (!peutAcceder(session, 'accompagnements')) return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
 
   const { id: idStr } = await params
   const accompagnementId = Number(idStr)
@@ -30,7 +31,7 @@ export async function POST(
 ) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
+  if (!peutAcceder(session, 'accompagnements', 'creer_modifier')) return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
 
   const { id: idStr } = await params
   const accompagnementId = Number(idStr)

@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { FileDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { useModeEdition } from '@/contexts/sauvegarde-accompagnement'
 
 interface Props {
   id: number
@@ -12,6 +15,9 @@ interface Props {
 
 export function BoutonExportPDFAccompagnement({ id, type, nom, prenom }: Props) {
   const [enCours, setEnCours] = useState(false)
+  const modeEdition = useModeEdition()
+
+  if (modeEdition) return null
 
   async function telecharger() {
     setEnCours(true)
@@ -31,8 +37,13 @@ export function BoutonExportPDFAccompagnement({ id, type, nom, prenom }: Props) 
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={telecharger} disabled={enCours}>
-      {enCours ? 'Génération…' : 'Exporter PDF'}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={telecharger} disabled={enCours}>
+          {enCours ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Exporter PDF</TooltipContent>
+    </Tooltip>
   )
 }

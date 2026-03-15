@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download } from 'lucide-react'
+import { Upload } from 'lucide-react'
 
 export function BoutonExportAteliers() {
   const [enCours, setEnCours] = useState(false)
@@ -31,9 +31,9 @@ export function BoutonExportAteliers() {
       onClick={telecharger}
       disabled={enCours}
       title="Exporter Excel"
-      className="h-8 w-8 text-blue-700 hover:text-blue-900"
+      className="h-8 w-8 text-muted-foreground hover:text-foreground"
     >
-      <Download className={`h-5 w-5 ${enCours ? 'animate-pulse' : ''}`} />
+      <Upload className={`h-5 w-5 ${enCours ? 'animate-pulse' : ''}`} />
     </Button>
   )
 }

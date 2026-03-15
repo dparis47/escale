@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { LogOut, ChevronDown } from 'lucide-react'
-import type { Role } from '@prisma/client'
+import { peutAcceder, type Permissions } from '@/lib/permissions'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,21 +13,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
-const ROLES_FR: Record<Role, string> = {
-  ACCUEIL:           'Accueil',
-  TRAVAILLEUR_SOCIAL: 'Travailleur social',
-  DIRECTION:         'Direction',
-}
-
 interface Props {
   user: {
     name?: string | null
-    role: Role
+    permissions: Permissions
   }
 }
 
 export function Header({ user }: Props) {
   const pathname = usePathname()
+  const s = { user: { permissions: user.permissions } }
+  const estAdmin = peutAcceder(s, 'audit')
 
   function navClass(href: string, exact = false) {
     const actif = exact ? pathname === href : pathname.startsWith(href)
@@ -45,36 +41,50 @@ export function Header({ user }: Props) {
             <img src="/logo.png" alt="Logo L'Escale" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             L&apos;Escale
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            {user.role !== 'DIRECTION' && (
-              <Link href="/" className={navClass('/', true)}>
-                Accueil journalier
-              </Link>
-            )}
-            {user.role !== 'DIRECTION' && (
-              <Link href="/partenaires" className={navClass('/partenaires')}>
-                Accueil partenaires
-              </Link>
-            )}
-            <Link href="/personnes" className={navClass('/personnes')}>
-              Dossiers individuels
-            </Link>
-            {user.role !== 'ACCUEIL' && (
-              <Link href="/accompagnement" className={navClass('/accompagnement')}>
-                Accompagnements
-              </Link>
-            )}
-            {user.role !== 'ACCUEIL' && (
-              <Link href="/ateliers" className={navClass('/ateliers')}>
-                Actions collectives
-              </Link>
-            )}
-            {user.role !== 'ACCUEIL' && (
-              <Link href="/bilans" className={navClass('/bilans')}>
-                Bilans
-              </Link>
-            )}
-          </nav>
+          {!estAdmin && (
+            <nav className="flex items-center gap-4 text-sm">
+              {peutAcceder(s, 'accueil_partenaires') && (
+                <Link href="/partenaires" className={navClass('/partenaires')}>
+                  Accueil partenaires
+                </Link>
+              )}
+              {peutAcceder(s, 'tableau_journalier') && (
+                <Link href="/" className={navClass('/', true)}>
+                  Accueil journalier
+                </Link>
+              )}
+              {peutAcceder(s, 'dossiers') && (
+                <Link href="/personnes" className={navClass('/personnes')}>
+                  Dossiers individuels
+                </Link>
+              )}
+              {peutAcceder(s, 'accompagnements') && (
+                <Link href="/accompagnement" className={navClass('/accompagnement')}>
+                  Accompagnements
+                </Link>
+              )}
+              {peutAcceder(s, 'ateliers') && (
+                <Link href="/ateliers" className={navClass('/ateliers')}>
+                  Actions collectives
+                </Link>
+              )}
+              {peutAcceder(s, 'bilans') && (
+                <Link href="/bilans" className={navClass('/bilans')}>
+                  Bilans
+                </Link>
+              )}
+              {peutAcceder(s, 'archives') && (
+                <Link href="/archives" className={navClass('/archives')}>
+                  Archives
+                </Link>
+              )}
+              {peutAcceder(s, 'utilisateurs') && (
+                <Link href="/utilisateurs" className={navClass('/utilisateurs')}>
+                  Utilisateurs
+                </Link>
+              )}
+            </nav>
+          )}
         </div>
 
         <DropdownMenu>

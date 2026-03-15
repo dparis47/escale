@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { parseISO } from '@/lib/dates'
 import {
   DEMARCHE_VIDE,
@@ -77,6 +78,7 @@ const COL_PATTERNS: { cle: string; pattern: RegExp }[] = [
   { cle: 'AUTRES',          pattern: /^autres$/ },
   { cle: 'LIEN_SOCIAL',     pattern: /liensocial|social/ },
   { cle: 'ATELIERS',        pattern: /^ateliers$/ },
+  { cle: 'THEME_ATELIER',   pattern: /themeatelier|thematelier|nomatel/ },
   { cle: 'COURS_INFO',      pattern: /coursinfo|coursinformatique|informatique/ },
   { cle: 'ASID',            pattern: /^asid$/ },
   { cle: 'COMMENTAIRE',     pattern: /comment/ },
@@ -104,9 +106,9 @@ interface LigneImport {
   genre:        'HOMME' | 'FEMME'
   orienteParFT: boolean
   commentaire:  string
-  atelierNoms:  string[]
   demarches:    DemarcheChamps
   asid:         boolean
+  themeAtelier: string
 }
 
 interface ResultatImport {
@@ -140,6 +142,7 @@ function parseNouveauFormat(
   const hGenre    = headers.find((h) => h === 'Genre') ?? headers.find((h) => normaliser(h) === 'genre')
   const hOrientFT = headers.find((h) => h === 'Orienté FT')
   const hComment  = headers.find((h) => h === 'Commentaire') ?? headers.find((h) => normaliser(h).match(/comment/))
+  const hThemeAtelier = headers.find((h) => h === 'Thème atelier') ?? headers.find((h) => normaliser(h).match(/themeatelier/))
 
   // Trouver les colonnes de démarches présentes dans le fichier
   const colonnesPresentes: { header: string; champ: string; type: 'bool' | 'nombre' | 'texte' | 'tableau' }[] = []
@@ -187,9 +190,6 @@ function parseNouveauFormat(
       } else if (col.type === 'texte') {
         const s = String(val ?? '').trim()
         ;(demarches[col.champ as keyof DemarcheChamps] as string | null) = s || null
-      } else if (col.type === 'tableau') {
-        const s = String(val ?? '').trim()
-        ;(demarches[col.champ as keyof DemarcheChamps] as string[]) = s ? s.split(',').map((x) => x.trim()) : []
       }
     }
 
@@ -201,9 +201,9 @@ function parseNouveauFormat(
       genre,
       orienteParFT: hOrientFT ? boolVal(row[hOrientFT]) : false,
       commentaire,
-      atelierNoms: demarches.atelierNoms,
       demarches,
       asid: false,
+      themeAtelier: strCol(row, hThemeAtelier),
     })
   })
 
@@ -243,8 +243,8 @@ function parseLegacyFormat(
     const nom    = strCol(row, cols.get('NOM')).toUpperCase() || 'ANONYME'
     const prenom = strCol(row, cols.get('PRENOM')) || ''
     const commentaire = strCol(row, cols.get('COMMENTAIRE'))
-    const estAtelier  = boolVal(cols.has('ATELIERS') ? row[cols.get('ATELIERS')!] : '')
-    const atelierNoms = estAtelier && commentaire ? [commentaire] : []
+    const themeAtelier = strCol(row, cols.get('THEME_ATELIER'))
+    const estAtelier  = themeAtelier !== '' || boolVal(cols.has('ATELIERS') ? row[cols.get('ATELIERS')!] : '')
     const autresFlag  = boolVal(cols.has('AUTRES') ? row[cols.get('AUTRES')!] : '')
 
     const demarches: DemarcheChamps = {
@@ -265,7 +265,7 @@ function parseLegacyFormat(
       autresInput:             autresFlag ? 'Autres' : null,
       isolementLienSocial:     boolVal(cols.has('LIEN_SOCIAL') ? row[cols.get('LIEN_SOCIAL')!] : ''),
       atelierParticipation:    estAtelier,
-      atelierNoms,
+      actionCollectiveId:      null,
     }
 
     lignes.push({
@@ -276,9 +276,9 @@ function parseLegacyFormat(
       genre,
       orienteParFT: boolVal(cols.has('ORIENTE_FT') ? row[cols.get('ORIENTE_FT')!] : ''),
       commentaire,
-      atelierNoms,
       demarches,
       asid: boolVal(cols.has('ASID') ? row[cols.get('ASID')!] : ''),
+      themeAtelier,
     })
   })
 
@@ -309,7 +309,7 @@ function parseExcel(buffer: ArrayBuffer): { lignes: LigneImport[]; erreurs: { li
 export async function POST(request: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+  if (!peutAcceder(session, 'tableau_journalier', 'importer')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -447,9 +447,33 @@ export async function POST(request: Request) {
       })
       if (visitExistante) { doublons++; continue }
 
-      // 3. Créer Visit + Demarches
-      const { atelierNoms: aN, ...demSansTableaux } = l.demarches
+      // 3. Résoudre le thème atelier si renseigné
+      let actionCollectiveId: number | null = null
+      if (l.themeAtelier) {
+        const themeRef = await prisma.themeAtelierRef.findFirst({
+          where: {
+            nom: { equals: l.themeAtelier, mode: 'insensitive' },
+            deletedAt: null,
+          },
+        })
+        if (themeRef) {
+          const dateVisite = parseISO(l.date)
+          // Chercher une séance existante ce jour-là pour ce thème
+          const seanceExistante = await prisma.actionCollective.findFirst({
+            where: { themeId: themeRef.id, date: dateVisite, deletedAt: null },
+          })
+          if (seanceExistante) {
+            actionCollectiveId = seanceExistante.id
+          } else {
+            const nouvelle = await prisma.actionCollective.create({
+              data: { themeId: themeRef.id, date: dateVisite },
+            })
+            actionCollectiveId = nouvelle.id
+          }
+        }
+      }
 
+      // 4. Créer Visit + Demarches
       const visite = await prisma.visit.create({
         data: {
           date:        parseISO(l.date),
@@ -458,23 +482,32 @@ export async function POST(request: Request) {
           commentaire:  l.commentaire || null,
           saisieParId:  Number(session.user.id),
           demarches: {
-            create: demSansTableaux,
+            create: {
+              ...l.demarches,
+              atelierParticipation: l.demarches.atelierParticipation || actionCollectiveId !== null,
+              actionCollectiveId,
+            },
           },
         },
       })
 
-      // atelierNoms via SQL brut (tableau PostgreSQL)
-      if (aN.length > 0) {
-        await prisma.$executeRawUnsafe(
-          `UPDATE "Demarches" SET "atelierNoms" = $1::text[] WHERE "visitId" = $2`,
-          aN,
-          visite.id,
-        )
+      // 5. Enregistrer la participation atelier
+      if (actionCollectiveId && personId) {
+        await prisma.participationAtelier.upsert({
+          where: {
+            actionCollectiveId_personId: {
+              actionCollectiveId,
+              personId,
+            },
+          },
+          update: { deletedAt: null },
+          create: { actionCollectiveId, personId },
+        })
       }
 
       importees++
 
-      // 4. Créer AccompagnementASID brouillon si ASID = 1
+      // 6. Créer AccompagnementASID brouillon si ASID = 1
       if (l.asid && !asidCrees.has(personId)) {
         const accoExistant = await prisma.accompagnement.findFirst({
           where: { personId, deletedAt: null },

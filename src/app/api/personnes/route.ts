@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseISO } from '@/lib/dates'
+import { logAudit } from '@/lib/audit'
 import { schemaCreerPersonne } from '@/schemas/person'
 
 const PAR_PAGE = 50
@@ -86,6 +87,14 @@ export async function POST(request: Request) {
   await prisma.demarches.create({ data: { accompagnementId: accompDI.id } })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (prisma as any).suiviEI.create({ data: { accompagnementId: accompDI.id } })
+
+  logAudit({
+    userId: Number(session.user.id),
+    action: 'creer',
+    entite: 'personne',
+    entiteId: personne.id,
+    details: `${rest.nom ?? ''} ${rest.prenom ?? ''}`.trim() || undefined,
+  })
 
   return NextResponse.json({ id: personne.id }, { status: 201 })
 }

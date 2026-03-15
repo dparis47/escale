@@ -187,7 +187,7 @@ export function SectionEntretiens({ accompagnementId, entretiens }: Props) {
                     </Button>
                     <Button
                       variant="ghost" size="sm"
-                      className="text-destructive hover:text-destructive"
+                      className="text-muted-foreground hover:text-foreground"
                       onClick={() => supprimerEntretien(e.id)}
                     >
                       Supprimer

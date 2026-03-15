@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { Button } from '@/components/ui/button'
+import { peutAcceder } from '@/lib/permissions'
 import { SectionParticipants } from '@/components/ateliers/section-participants'
 
 export default async function DetailAtelierPage({
@@ -13,7 +14,7 @@ export default async function DetailAtelierPage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role === 'ACCUEIL') redirect('/')
+  if (!peutAcceder(session, 'ateliers')) redirect('/')
 
   const { id: idStr } = await params
   const id = Number(idStr)
@@ -36,7 +37,7 @@ export default async function DetailAtelierPage({
 
   if (!atelier) notFound()
 
-  const estTS = session.user.role === 'TRAVAILLEUR_SOCIAL'
+  const peutModifier = peutAcceder(session, 'ateliers', 'creer_modifier')
 
   return (
     <main className="container mx-auto max-w-2xl px-4 py-6">
@@ -54,7 +55,7 @@ export default async function DetailAtelierPage({
           </p>
         </div>
         <div className="flex gap-2">
-          {estTS && (
+          {peutModifier && (
             <Link href={`/ateliers/${id}/modifier`}>
               <Button variant="outline">Modifier</Button>
             </Link>
@@ -97,7 +98,7 @@ export default async function DetailAtelierPage({
       <h2 className="mb-3 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Participants ({atelier.participants.length})
       </h2>
-      {estTS ? (
+      {peutModifier ? (
         <SectionParticipants
           atelierId={id}
           participants={atelier.participants.map((p) => ({

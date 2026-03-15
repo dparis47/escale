@@ -3,6 +3,8 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseISO } from '@/lib/dates'
 import { schemaMajAccompagnement } from '@/schemas/accompagnement'
+import { peutAcceder } from '@/lib/permissions'
+import { logAudit } from '@/lib/audit'
 
 async function getAccompagnement(id: number) {
   return prisma.accompagnement.findFirst({ where: { id, deletedAt: null } })
@@ -15,7 +17,7 @@ export async function GET(
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
 
-  if (session.user.role === 'ACCUEIL') {
+  if (!peutAcceder(session, 'accompagnements')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -54,7 +56,7 @@ export async function PATCH(
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
 
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+  if (!peutAcceder(session, 'accompagnements', 'creer_modifier')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -122,6 +124,13 @@ export async function PATCH(
     },
   })
 
+  logAudit({
+    userId: Number(session.user.id),
+    action: 'modifier',
+    entite: 'accompagnement',
+    entiteId: id,
+  })
+
   return NextResponse.json(updated)
 }
 
@@ -132,7 +141,7 @@ export async function DELETE(
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
 
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+  if (!peutAcceder(session, 'accompagnements', 'supprimer')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 
@@ -151,6 +160,13 @@ export async function DELETE(
     if (suivi) {
       await tx.suiviASID.update({ where: { id: suivi.id }, data: { deletedAt: now } })
     }
+  })
+
+  logAudit({
+    userId: Number(session.user.id),
+    action: 'supprimer',
+    entite: 'accompagnement',
+    entiteId: id,
   })
 
   return new NextResponse(null, { status: 204 })

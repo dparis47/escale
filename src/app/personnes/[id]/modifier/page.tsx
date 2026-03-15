@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { FormulairePersonne } from '@/components/personnes/formulaire-personne'
 import type { PersonneAvecStats } from '@/types/persons'
 
@@ -11,7 +12,7 @@ export default async function ModifierPersonnePage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role === 'DIRECTION') redirect('/personnes')
+  if (!peutAcceder(session, 'dossiers', 'modifier')) redirect('/personnes')
 
   const { id: idStr } = await params
   const id = Number(idStr)

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
+import { peutAcceder } from '@/lib/permissions'
 
 const IMPORTS = [
   {
@@ -33,7 +34,12 @@ const IMPORTS = [
 export default async function ImportHubPage() {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') redirect('/')
+  const peutImporter = peutAcceder(session, 'tableau_journalier', 'importer') ||
+    peutAcceder(session, 'dossiers', 'importer') ||
+    peutAcceder(session, 'accompagnements', 'importer') ||
+    peutAcceder(session, 'ateliers', 'importer') ||
+    peutAcceder(session, 'accueil_partenaires', 'importer')
+  if (!peutImporter) redirect('/')
 
   return (
     <main className="container mx-auto max-w-3xl px-4 py-6">

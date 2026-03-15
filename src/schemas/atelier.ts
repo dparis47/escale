@@ -28,6 +28,7 @@ export type ThemeOption = {
   id: number
   nom: string
   ordre: number
+  _count?: { ateliers: number }
 }
 
 export type CategorieAvecThemes = {
@@ -68,6 +69,36 @@ export const schemaMajAtelier = z.object({
   date:          z.string().regex(dateRegex, 'Date invalide (YYYY-MM-DD)').optional(),
   notes:         z.string().optional(),
 })
+
+// ============================================================
+// Types sérialisables pour le composant client TableauAteliers
+// ============================================================
+
+export interface SessionAtelierData {
+  id: number
+  date: string          // pré-formaté (ex: "20 fév. 2024")
+  themeAutre: string | null
+  themeId: number
+  prestataireId: number | null
+  fichiers: { id: number; nom: string }[]
+  nbParticipants: number
+}
+
+export interface GroupeAtelierData {
+  prestataireNom: string | null
+  themeNom: string
+  lieu: string | null
+  sessions: SessionAtelierData[]
+}
+
+export interface CategorieAtelierData {
+  id: number
+  nom: string
+  couleur: string
+  ordre: number
+  themes: ThemeOption[]
+  groupes: GroupeAtelierData[]
+}
 
 export type CreerAtelierInput = z.infer<typeof schemaCreerAtelier>
 export type MajAtelierInput   = z.infer<typeof schemaMajAtelier>

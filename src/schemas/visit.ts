@@ -101,7 +101,8 @@ export const schemaDemarcheVisite = z.object({
 
   // ATELIERS DE REDYNAMISATION
   atelierParticipation:       z.boolean().default(false),
-  atelierNoms:                z.array(z.string().max(200)).default([]),
+  actionCollectiveId:         z.number().int().positive().nullish(),
+  themeAtelierId:             z.number().int().positive().nullish(),
 })
 
 export const schemaCreerVisite = z.object({
@@ -119,6 +120,7 @@ export const schemaCreerVisite = z.object({
 })
 
 export const schemaMajVisite = z.object({
+  date:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format date invalide (YYYY-MM-DD)').optional(),
   genre:        z.enum(['HOMME', 'FEMME']).optional(),
   nom:          z.string().max(100).nullish(),
   prenom:       z.string().max(100).nullish(),

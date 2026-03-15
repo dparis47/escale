@@ -9,6 +9,7 @@ import { FiltresAnnee } from '@/components/tableau-journalier/filtres-annee'
 import { BoutonsImportExportVisites } from '@/components/tableau-journalier/boutons-import-export-visites'
 import { champsTheme, ARBRE_DEMARCHES, feuillesTheme } from '@/lib/demarches'
 import { capitaliserPrenom } from '@/lib/dates'
+import { peutAcceder } from '@/lib/permissions'
 
 const MOIS_FR = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -229,6 +230,7 @@ export default async function VueAnnuellePage({
               themeFiltre={themeFiltre}
               champFiltre={champFiltre}
               recherche={recherche}
+              showImport={peutAcceder(session, 'tableau_journalier', 'importer')}
             />
           </div>
         </div>

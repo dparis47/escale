@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { NIVEAUX_FORMATION_FR, SUJETS_ENTRETIEN_FR } from '@/schemas/accompagnement'
 import {
   creerPDF,
@@ -20,7 +21,7 @@ export async function GET(
 ) {
   const session = await auth()
   if (!session) return new NextResponse(null, { status: 401 })
-  if (session.user.role === 'ACCUEIL') return new NextResponse(null, { status: 403 })
+  if (!peutAcceder(session, 'accompagnements')) return new NextResponse(null, { status: 403 })
 
   const { id } = await params
   const accompId = Number(id)

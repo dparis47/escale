@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/auth'
+import { peutAcceder } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { parseISO, formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { SelecteurAnnee } from '@/components/bilans/selecteur-annee'
@@ -26,7 +27,7 @@ export default async function BilanASIDPage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role === 'ACCUEIL') redirect('/')
+  if (!peutAcceder(session, 'bilans')) redirect('/')
 
   const params        = await searchParams
   const anneeActuelle = new Date().getFullYear()

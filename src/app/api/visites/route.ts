@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseISO, dateAujourdhui } from '@/lib/dates'
 import { schemaCreerVisite } from '@/schemas/visit'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -19,10 +20,10 @@ export async function GET(request: Request) {
   const visites = await prisma.visit.findMany({
     where: { date: parseISO(dateISO), deletedAt: null },
     include: {
-      person:     { select: { id: true, nom: true, prenom: true } },
+      person:     { select: { id: true, nom: true, prenom: true, genre: true, estInscrit: true } },
       saisiePar:  { select: { prenom: true, nom: true } },
       modifiePar: { select: { prenom: true, nom: true } },
-      demarches:  true,
+      demarches:  { include: { actionCollective: { select: { themeId: true, themeRef: { select: { nom: true } } } } } },
     },
     orderBy: { createdAt: 'asc' },
   })
@@ -77,45 +78,58 @@ export async function POST(request: Request) {
       resolvedPersonId = person.id
     }
 
-    // atelierNoms n'est pas encore connu du client Prisma (migrate resolve en attente)
-    // → on l'extrait et on le sauvegarde via SQL brut après le create
-    const { atelierNoms, ...demarchesPrisma } = demarches ?? {}
+    // Résoudre themeAtelierId → actionCollectiveId (trouver ou créer la séance du jour)
+    let actionCollectiveIdResolu = demarches?.actionCollectiveId ?? null
+    if (demarches?.themeAtelierId) {
+      const dateSeance = parseISO(date)
+      let seance = await prisma.actionCollective.findFirst({
+        where: { themeId: demarches.themeAtelierId, date: dateSeance, deletedAt: null },
+        select: { id: true },
+      })
+      if (!seance) {
+        seance = await prisma.actionCollective.create({
+          data: { themeId: demarches.themeAtelierId, date: dateSeance },
+        })
+      }
+      actionCollectiveIdResolu = seance.id
+    }
+    // Construire les démarches pour persistence (sans themeAtelierId, avec actionCollectiveId résolu)
+    const { themeAtelierId: _t, ...demarchesSansTheme } = demarches ?? {}
+    const demarchesPersist = {
+      ...demarchesSansTheme,
+      actionCollectiveId: actionCollectiveIdResolu,
+      atelierParticipation: !!actionCollectiveIdResolu || !!demarches?.atelierParticipation,
+    }
 
     const visite = await prisma.visit.create({
       data: {
         date:        parseISO(date),
         personId:    resolvedPersonId,
         orienteParFT,
+        partenaires: partenaires ?? [],
         commentaire: commentaire ?? null,
         fse:         fse ?? false,
         saisieParId: Number(session.user.id),
-        demarches:   { create: demarchesPrisma },
+        demarches:   { create: demarchesPersist },
       },
     })
 
-    if (atelierNoms !== undefined && atelierNoms.length > 0) {
-      await prisma.$executeRawUnsafe(
-        `UPDATE "Demarches" SET "atelierNoms" = $1::text[] WHERE "visitId" = $2`,
-        atelierNoms, visite.id,
-      )
-
-      // Auto-créer une ActionCollective pour chaque nouvel atelier saisi
-      const themeFallback = await prisma.themeAtelierRef.findFirst({
-        where: { deletedAt: null },
-        orderBy: { id: 'asc' },
+    // Ajout automatique comme participant à l'atelier
+    const atelId = demarchesPersist.actionCollectiveId
+    if (atelId && resolvedPersonId) {
+      await prisma.participationAtelier.upsert({
+        where: {
+          actionCollectiveId_personId: {
+            actionCollectiveId: atelId,
+            personId: resolvedPersonId,
+          },
+        },
+        create: {
+          actionCollectiveId: atelId,
+          personId: resolvedPersonId,
+        },
+        update: { deletedAt: null },
       })
-      if (themeFallback) {
-        for (const nom of atelierNoms) {
-          const existe = await prisma.actionCollective.findFirst({
-            where: { themeAutre: nom, deletedAt: null },
-          })
-          if (!existe) {
-            await prisma.actionCollective.create({
-              data: { themeId: themeFallback.id, themeAutre: nom, date: new Date() },
-            })
-          }
-        }
-      }
     }
 
     if (partenaires && partenaires.length > 0) {
@@ -141,6 +155,14 @@ export async function POST(request: Request) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (prisma as any).suiviEI.create({ data: { accompagnementId: accompDI.id } })
     }
+
+    logAudit({
+      userId: Number(session.user.id),
+      action: 'creer',
+      entite: 'visite',
+      entiteId: visite.id,
+      details: nom || prenom ? `${nom ?? ''} ${prenom ?? ''}`.trim() : undefined,
+    })
 
     return NextResponse.json(visite, { status: 201 })
   } catch (e) {

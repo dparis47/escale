@@ -40,7 +40,11 @@ export default async function TableauJournalierPage({
         person:      { select: { id: true, nom: true, prenom: true, genre: true, estInscrit: true, _count: { select: { visites: { where: { deletedAt: null } } } } } },
         saisiePar:   { select: { prenom: true, nom: true } },
         modifiePar:  { select: { prenom: true, nom: true } },
-        demarches: true,
+        demarches: {
+          include: {
+            actionCollective: { select: { themeId: true, themeRef: { select: { nom: true } } } },
+          },
+        },
       },
       orderBy: { createdAt: 'asc' }, // trié ensuite en JS
     }),

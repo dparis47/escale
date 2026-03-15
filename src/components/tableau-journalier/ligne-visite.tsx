@@ -88,19 +88,35 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
             </span>
           )}
           {visite.demarches && (() => {
+            const nomThemeAtelier = visite.demarches.actionCollective?.themeRef?.nom
             const themes = themesAvecFeuilles(fromPrisma(visite.demarches as unknown as Record<string, unknown>))
-            return themes.map(({ id, label, feuilles }) => (
-              <div key={id}>
-                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
-                  {label}
-                </span>
-                <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 pl-1">
-                  {feuilles.map((f) => (
-                    <span key={f} className="text-xs text-muted-foreground">· {f}</span>
-                  ))}
-                </div>
-              </div>
-            ))
+              .filter(({ id }) => !(id === 'ateliers' && nomThemeAtelier))
+            return (
+              <>
+                {themes.map(({ id, label, feuilles }) => (
+                  <div key={id}>
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
+                      {label}
+                    </span>
+                    <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 pl-1">
+                      {feuilles.map((f) => (
+                        <span key={f} className="text-xs text-muted-foreground">· {f}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {nomThemeAtelier && (
+                  <div>
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
+                      ATELIERS DE REDYNAMISATION
+                    </span>
+                    <div className="mt-0.5 pl-1">
+                      <span className="text-xs text-muted-foreground">Atelier : {nomThemeAtelier}</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )
           })()}
           {visite.demarches?.autresInput && (
             <p className="text-xs text-muted-foreground">Autres : {visite.demarches.autresInput}</p>
@@ -117,11 +133,11 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
 
       {/* Actions */}
       <td className={`${cellBase} px-3 py-3`} {...survolProps}>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end gap-1">
           {auditInfo && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="cursor-default select-none text-muted-foreground">
+                <span className="flex h-8 w-8 cursor-default select-none items-center justify-center text-muted-foreground">
                   <Info className="h-4 w-4" />
                 </span>
               </TooltipTrigger>
@@ -133,7 +149,7 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Link href={`/personnes/${visite.personId}`}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                   <Eye className="h-4 w-4" />
                 </Button>
               </Link>
@@ -146,7 +162,7 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
                 onClick={supprimer}
                 disabled={enSuppression}
               >

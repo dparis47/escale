@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { schemaMajPrestataire } from '@/schemas/atelier'
+import { peutAcceder } from '@/lib/permissions'
 
 // PATCH — Renommer un prestataire
 export async function PATCH(
@@ -10,7 +11,7 @@ export async function PATCH(
 ) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL')
+  if (!peutAcceder(session, 'config_ateliers', 'gerer'))
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
 
   const { id: idStr } = await params
@@ -54,7 +55,7 @@ export async function DELETE(
 ) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL')
+  if (!peutAcceder(session, 'config_ateliers', 'gerer'))
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
 
   const { id: idStr } = await params

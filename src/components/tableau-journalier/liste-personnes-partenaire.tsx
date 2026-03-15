@@ -190,7 +190,7 @@ export function ListePersonnesPartenaire({ partenaire, initial }: Props) {
                     type="button"
                     onClick={() => supprimer(p.id)}
                     disabled={enSuppr === p.id}
-                    className="text-destructive hover:underline disabled:opacity-40"
+                    className="text-muted-foreground hover:text-foreground hover:underline disabled:opacity-40"
                   >
                     Supprimer
                   </button>
@@ -216,7 +216,7 @@ export function ListePersonnesPartenaire({ partenaire, initial }: Props) {
                 type="button"
                 onClick={() => retirerAnonyme(date)}
                 disabled={anonymesDuJour.length === 0}
-                className="text-destructive hover:underline disabled:opacity-40"
+                className="text-muted-foreground hover:text-foreground hover:underline disabled:opacity-40"
               >
                 Supprimer
               </button>

@@ -15,6 +15,8 @@ import { SectionContrats } from '@/components/accompagnement/section-contrats'
 import { SectionEntretiens } from '@/components/accompagnement/section-entretiens'
 import { SectionDemarches } from '@/components/accompagnement/section-demarches'
 import type { SujetEntretien } from '@prisma/client'
+import { peutAcceder } from '@/lib/permissions'
+import { fromPrisma, themesAvecFeuilles } from '@/lib/demarches'
 
 function SectionTitre({ children }: { children: React.ReactNode }) {
   return (
@@ -45,7 +47,7 @@ export default async function FichePersonnePage({
         orderBy: { date: 'desc' },
         select:  {
           id: true, date: true, orienteParFT: true, commentaire: true, fse: true,
-          demarches: { select: { atelierNoms: true, autresInput: true } },
+          demarches: { include: { actionCollective: { select: { themeRef: { select: { nom: true } }, themeAutre: true } } } },
         },
       },
       accompagnements: {
@@ -63,8 +65,9 @@ export default async function FichePersonnePage({
 
   if (!personne) notFound()
 
-  const isTS         = session.user.role === 'TRAVAILLEUR_SOCIAL'
-  const peutModifier = session.user.role !== 'DIRECTION'
+  const isTS              = peutAcceder(session, 'accompagnements', 'creer_modifier')
+  const peutModifier      = peutAcceder(session, 'dossiers', 'modifier')
+  const peutSupprimerDossier = peutAcceder(session, 'dossiers', 'supprimer')
 
   // Charger l'accompagnement EI (dossier individuel invisible) avec ses relations
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,6 +118,11 @@ export default async function FichePersonnePage({
   const aFSEEnCours  = accompagnementsFormels.some((a) => !a.dateSortie)
   const aASIDEnCours = accompagnementsFormels.some((a) => !a.dateSortie && a.suiviASID)
 
+  // Suppression : si accompagnements formels existent, permission spécifique requise
+  const peutSupprimerPersonne = peutSupprimerDossier && (
+    accompagnementsFormels.length === 0 || peutAcceder(session, 'dossiers', 'supprimer_avec_accompagnement')
+  )
+
   return (
     <SauvegardeProvider>
     <main className="container mx-auto max-w-6xl px-4 py-6">
@@ -131,9 +139,12 @@ export default async function FichePersonnePage({
       <div className="sticky top-0 z-10 bg-background border-b pb-3 mb-4 -mx-4 px-4 pt-4">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-blue-700">
-              {personne.nom.toUpperCase()} {capitaliserPrenom(personne.prenom)}
-            </h1>
+            <div className="flex items-center gap-1">
+              <h1 className="text-2xl font-bold text-blue-700">
+                {personne.nom.toUpperCase()} {capitaliserPrenom(personne.prenom)}
+              </h1>
+              <BoutonExportPDF id={id} nom={personne.nom} prenom={personne.prenom} />
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
               <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
                 {personne.dateActualisation
@@ -146,9 +157,8 @@ export default async function FichePersonnePage({
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
-              <BoutonExportPDF id={id} nom={personne.nom} prenom={personne.prenom} />
               {peutModifier && <BoutonEnregistrerGlobal />}
-              <BoutonSupprimerPersonne id={id} redirectApres="/personnes" />
+              {peutSupprimerPersonne && <BoutonSupprimerPersonne id={id} redirectApres="/personnes" />}
               <Link href="/personnes">
                 <Button variant="ghost">← Retour</Button>
               </Link>
@@ -254,7 +264,7 @@ export default async function FichePersonnePage({
             <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 text-left">Date</th>
-                <th className="px-3 py-2 text-left">Infos</th>
+                <th className="px-3 py-2 text-left">Démarches</th>
                 <th className="px-3 py-2 text-left">Commentaire</th>
               </tr>
             </thead>
@@ -267,12 +277,45 @@ export default async function FichePersonnePage({
                       <span className="ml-2 rounded-full bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700">FSE</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {[
-                      v.orienteParFT ? 'Orienté par France Travail' : null,
-                      v.demarches?.atelierNoms?.length ? `Atelier(s) : ${v.demarches.atelierNoms.join(', ')}` : null,
-                      v.demarches?.autresInput ? `Autres : ${v.demarches.autresInput}` : null,
-                    ].filter(Boolean).join(' · ') || '—'}
+                  <td className="px-3 py-2">
+                    <div className="flex flex-col gap-1.5">
+                      {v.orienteParFT && (
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500 border border-gray-200 self-start">
+                          Orienté(e) par France Travail
+                        </span>
+                      )}
+                      {v.demarches && (() => {
+                        const nomThemeAtelier = v.demarches.actionCollective?.themeRef?.nom
+                        const themes = themesAvecFeuilles(fromPrisma(v.demarches as unknown as Record<string, unknown>))
+                          .filter(({ id }) => !(id === 'ateliers' && nomThemeAtelier))
+                        return (
+                          <>
+                            {themes.map(({ id, label, feuilles }) => (
+                              <div key={id}>
+                                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">{label}</span>
+                                <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 pl-1">
+                                  {feuilles.map((f) => (
+                                    <span key={f} className="text-xs text-muted-foreground">· {f}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                            {nomThemeAtelier && (
+                              <div>
+                                <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">ATELIERS DE REDYNAMISATION</span>
+                                <div className="mt-0.5 pl-1">
+                                  <span className="text-xs text-muted-foreground">Atelier : {nomThemeAtelier}</span>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
+                      {v.demarches?.autresInput && (
+                        <p className="text-xs text-muted-foreground">Autres : {v.demarches.autresInput}</p>
+                      )}
+                      {!v.orienteParFT && !v.demarches && <span className="text-xs text-muted-foreground">—</span>}
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {v.commentaire ?? '—'}

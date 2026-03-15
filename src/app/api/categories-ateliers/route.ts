@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { schemaCreerCategorie } from '@/schemas/atelier'
+import { peutAcceder } from '@/lib/permissions'
 
 // GET — Lister toutes les catégories avec leurs thèmes
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role === 'ACCUEIL') return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
 
   const categories = await prisma.categorieAtelier.findMany({
     where: { deletedAt: null },
@@ -15,7 +15,14 @@ export async function GET() {
       themes: {
         where: { deletedAt: null },
         orderBy: { ordre: 'asc' },
-        select: { id: true, nom: true, ordre: true },
+        select: {
+          id: true,
+          nom: true,
+          ordre: true,
+          _count: {
+            select: { ateliers: { where: { deletedAt: null } } },
+          },
+        },
       },
     },
     orderBy: { ordre: 'asc' },
@@ -28,7 +35,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL')
+  if (!peutAcceder(session, 'config_ateliers', 'gerer'))
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
 
   const body = await request.json()

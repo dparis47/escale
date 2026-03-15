@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { formaterDateCourte } from '@/lib/dates'
 import { NIVEAUX_FORMATION_FR } from '@/schemas/accompagnement'
 
 export async function GET() {
   const session = await auth()
   if (!session) return new NextResponse(null, { status: 401 })
-  if (session.user.role === 'ACCUEIL') return new NextResponse(null, { status: 403 })
+  if (!peutAcceder(session, 'accompagnements', 'exporter')) return new NextResponse(null, { status: 403 })
 
   const accompagnements = await prisma.accompagnement.findMany({
     where: {

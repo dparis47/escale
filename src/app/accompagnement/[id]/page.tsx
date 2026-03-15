@@ -19,11 +19,12 @@ import { BoutonSupprimerAccompagnement } from '@/components/accompagnement/bouto
 import { BoutonFinaliserAccompagnement } from '@/components/accompagnement/bouton-finaliser-accompagnement'
 import { PopupFichePersonne } from '@/components/accompagnement/popup-fiche-personne'
 import { BoutonExportPDFAccompagnement } from '@/components/accompagnement/bouton-export-pdf'
+import { peutAcceder } from '@/lib/permissions'
 import type { SujetEntretien } from '@prisma/client'
 
 function SectionTitre({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 mt-6 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <h2 className="mb-3 mt-6 rounded-md bg-blue-50 px-2 py-1 text-sm font-semibold uppercase tracking-wide text-blue-700">
       {children}
     </h2>
   )
@@ -36,7 +37,7 @@ export default async function FicheAccompagnementPage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role === 'ACCUEIL') redirect('/')
+  if (!peutAcceder(session, 'accompagnements')) redirect('/')
 
   const { id: idStr } = await params
   const id = Number(idStr)
@@ -73,7 +74,8 @@ export default async function FicheAccompagnementPage({
 
   if (!accompagnement) notFound()
 
-  const isTS          = session.user.role === 'TRAVAILLEUR_SOCIAL'
+  const peutModifier   = peutAcceder(session, 'accompagnements', 'creer_modifier')
+  const peutSupprimer  = peutAcceder(session, 'accompagnements', 'supprimer')
   const estEI         = !!accompagnement.suiviEI
   const estBrouillon  = accompagnement.estBrouillon
 
@@ -109,7 +111,7 @@ export default async function FicheAccompagnementPage({
     orderBy: { date: 'desc' },
     select: {
       id: true, date: true, orienteParFT: true, commentaire: true,
-      demarches: { select: { atelierNoms: true, autresInput: true } },
+      demarches: { select: { atelierParticipation: true, autresInput: true, actionCollective: { select: { themeRef: { select: { nom: true } }, themeAutre: true } } } },
     },
   })
 
@@ -128,6 +130,14 @@ export default async function FicheAccompagnementPage({
               <h1 className="text-2xl font-bold text-blue-700">
                 {accompagnement.person.nom.toUpperCase()} {capitaliserPrenom(accompagnement.person.prenom)}
               </h1>
+              {!estEI && (
+                <BoutonExportPDFAccompagnement
+                  id={id}
+                  type={accompagnement.suiviASID ? 'asid' : 'fse'}
+                  nom={accompagnement.person.nom}
+                  prenom={accompagnement.person.prenom}
+                />
+              )}
               {estEI ? (
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">Dossier individuel</span>
               ) : (
@@ -144,20 +154,21 @@ export default async function FicheAccompagnementPage({
               <p className="text-sm text-muted-foreground">{age} ans</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {!estEI && (
-              <BoutonExportPDFAccompagnement
-                id={id}
-                type={accompagnement.suiviASID ? 'asid' : 'fse'}
-                nom={accompagnement.person.nom}
-                prenom={accompagnement.person.prenom}
-              />
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              {peutModifier && <BoutonEnregistrerGlobal />}
+              {peutSupprimer && <BoutonSupprimerAccompagnement id={id} redirectApres="/accompagnement" />}
+              <Link href="/accompagnement">
+                <Button variant="ghost">← Retour</Button>
+              </Link>
+            </div>
+            {peutModifier && !estEI && !accompagnement.suiviASID && !accompagnement.dateSortie && (
+              <Link href={`/accompagnement/nouveau-asid?personId=${accompagnement.personId}`}>
+                <Button variant="outline" size="sm" className="border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100">
+                  + Démarrer un acc. ASID
+                </Button>
+              </Link>
             )}
-            {isTS && <BoutonEnregistrerGlobal />}
-            {isTS && <BoutonSupprimerAccompagnement id={id} redirectApres="/accompagnement" />}
-            <Link href="/accompagnement">
-              <Button variant="ghost">← Retour</Button>
-            </Link>
           </div>
         </div>
       </div>
@@ -171,7 +182,7 @@ export default async function FicheAccompagnementPage({
           <p className="mt-1 text-sm text-amber-700">
             Veuillez compléter les informations (prescripteur, date d&apos;entrée, ressources…) puis cliquer sur le bouton ci-dessous.
           </p>
-          {isTS && (
+          {peutModifier && (
             <div className="mt-3">
               <BoutonFinaliserAccompagnement id={id} />
             </div>
@@ -196,7 +207,7 @@ export default async function FicheAccompagnementPage({
         {estEI ? (
           /* ── Layout EI ──────────────────────────────────── */
           <>
-            {isTS ? (
+            {peutModifier ? (
               <SectionAccompagnementEI
                 accompagnementId={id}
                 dateEntree={accompagnement.dateEntree}
@@ -223,7 +234,7 @@ export default async function FicheAccompagnementPage({
         ) : (
           /* ── Layout FSE / ASID ───────────────────────────── */
           <>
-            {isTS ? (
+            {peutModifier ? (
               <SectionSuiviFSE
                 accompagnementId={id}
                 dateEntree={accompagnement.dateEntree}
@@ -246,7 +257,7 @@ export default async function FicheAccompagnementPage({
               </>
             )}
 
-            {isTS && (
+            {peutModifier && (
               <SectionSituationEntree
                 accompagnementId={id}
                 ressourceRSA={accompagnement.ressourceRSA}
@@ -272,14 +283,14 @@ export default async function FicheAccompagnementPage({
               />
             )}
 
-            {isTS && (
+            {peutModifier && (
               <SectionSortieFSE
                 accompagnementId={id}
                 sortie={accompagnement.sortie}
               />
             )}
 
-            {isTS && accompagnement.suiviASID && (
+            {peutModifier && accompagnement.suiviASID && (
               <SectionAccompagnementASID
                 accompagnementId={id}
                 suiviASID={accompagnement.suiviASID}
@@ -292,7 +303,7 @@ export default async function FicheAccompagnementPage({
         )}
 
         {/* ── CV - Lettre(s) de motivation ─────────────────── */}
-        {isTS && (
+        {peutModifier && (
           <>
             <SectionTitre>CV - Lettre(s) de motivation</SectionTitre>
             <SectionCVLM
@@ -304,7 +315,7 @@ export default async function FicheAccompagnementPage({
 
         {/* ── Contrat(s) de travail ────────────────────────── */}
         <SectionTitre>Contrat(s) de travail</SectionTitre>
-        {isTS ? (
+        {peutModifier ? (
           <SectionContrats
             accompagnementId={id}
             contrats={accompagnement.person.contratsTravail}
@@ -362,7 +373,7 @@ export default async function FicheAccompagnementPage({
                     <td className="px-3 py-2 text-xs text-muted-foreground">
                       {[
                         v.orienteParFT ? 'Orienté par France Travail' : null,
-                        v.demarches?.atelierNoms?.length ? `Atelier(s) : ${v.demarches.atelierNoms.join(', ')}` : null,
+                        v.demarches?.atelierParticipation ? `Atelier : ${v.demarches.actionCollective ? (v.demarches.actionCollective.themeAutre ?? v.demarches.actionCollective.themeRef.nom) : 'oui'}` : null,
                         v.demarches?.autresInput ? `Autres : ${v.demarches.autresInput}` : null,
                       ].filter(Boolean).join(' · ') || '—'}
                     </td>
@@ -379,7 +390,7 @@ export default async function FicheAccompagnementPage({
       </div>{/* fin colonne principale */}
 
       <aside className="w-80 shrink-0 sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto border-l pl-6">
-        <h2 className="sticky top-0 z-10 mb-3 mt-2 border-b bg-background pb-1 pt-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="sticky top-0 z-10 mb-3 mt-2 rounded-md bg-blue-50 px-2 pt-2 pb-1 text-sm font-semibold uppercase tracking-wide text-blue-700">
           Démarches
         </h2>
         <SectionDemarches

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Download, Upload } from 'lucide-react'
+import { Upload, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
@@ -48,11 +48,11 @@ export function BoutonsImportExportVisites({ annee, mois, themeFiltre, champFilt
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={handleExport}
             disabled={exportEnCours}
           >
-            <Download className="h-4 w-4" />
+            <Upload className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>{exportEnCours ? 'Export en cours…' : 'Exporter Excel'}</TooltipContent>
@@ -64,9 +64,9 @@ export function BoutonsImportExportVisites({ annee, mois, themeFiltre, champFilt
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
               >
-                <Upload className="h-4 w-4" />
+                <Download className="h-4 w-4" />
               </Button>
             </Link>
           </TooltipTrigger>

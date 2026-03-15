@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
-import { Eye } from 'lucide-react'
+import { peutAcceder } from '@/lib/permissions'
+import { Eye, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { BoutonSupprimerAccompagnement } from '@/components/accompagnement/bouton-supprimer-accompagnement'
@@ -28,13 +29,14 @@ export default async function ListeAccompagnementsPage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role === 'ACCUEIL') redirect('/')
+  if (!peutAcceder(session, 'accompagnements')) redirect('/')
 
   const params = await searchParams
   const q    = params.q?.trim() ?? ''
   const page = Math.max(1, Number(params.page ?? '1'))
 
-  const isTS = session.user.role === 'TRAVAILLEUR_SOCIAL'
+  const peutModifier   = peutAcceder(session, 'accompagnements', 'creer_modifier')
+  const peutSupprimer  = peutAcceder(session, 'accompagnements', 'supprimer')
 
   const where = {
     deletedAt: null,
@@ -86,6 +88,18 @@ export default async function ListeAccompagnementsPage({
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">Accompagnements</h1>
             <BoutonExportAccompagnements />
+            {peutAcceder(session, 'accompagnements', 'importer') && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/import/accompagnements">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>Importer Excel</TooltipContent>
+              </Tooltip>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">{total} personne{total > 1 ? 's' : ''}</p>
           {total > 0 && (
@@ -96,7 +110,7 @@ export default async function ListeAccompagnementsPage({
             </div>
           )}
         </div>
-        {isTS && (
+        {peutModifier && (
           <div className="flex gap-2">
             <Link href="/accompagnement/nouveau-asid">
               <Button className="border border-blue-400 bg-blue-100 text-blue-800 hover:bg-blue-200">+ Nouveau ASID</Button>
@@ -164,14 +178,14 @@ export default async function ListeAccompagnementsPage({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Link href={`/accompagnement/${a.id}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
                         </TooltipTrigger>
                         <TooltipContent>Voir</TooltipContent>
                       </Tooltip>
-                      {isTS && (
+                      {peutSupprimer && (
                         <BoutonSupprimerAccompagnement id={a.id} />
                       )}
                     </div>

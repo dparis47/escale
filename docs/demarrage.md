@@ -28,6 +28,7 @@ Comptes de test créés par le seed :
 | `accueil@escale.fr` | `password123` | Accueil |
 | `ts@escale.fr` | `password123` | Travailleur social |
 | `direction@escale.fr` | `password123` | Direction |
+| `admin@escale.fr` | `password123` | Administrateur |
 
 ## Lancer le serveur de développement
 

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/auth'
+import { peutAcceder } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { parseISO, formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
@@ -22,7 +23,7 @@ export default async function BilanFranceTravailPage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role === 'ACCUEIL') redirect('/')
+  if (!peutAcceder(session, 'bilans')) redirect('/')
 
   const params        = await searchParams
   const anneeActuelle = new Date().getFullYear()
@@ -250,7 +251,7 @@ export default async function BilanFranceTravailPage({
         AND v."deletedAt" IS NULL
         AND EXISTS (
           SELECT 1 FROM "Demarches" d
-          WHERE d."visitId" = v.id AND d."atelierParticipation" = true
+          WHERE d."visitId" = v.id AND d."atelierParticipation" = true AND d."actionCollectiveId" = ac.id
         )
       WHERE ac."deletedAt" IS NULL
         AND ac.date >= ${debut}
@@ -271,7 +272,7 @@ export default async function BilanFranceTravailPage({
             AND v."personId" IN (${Prisma.join(emploiPersonIds)})
             AND EXISTS (
               SELECT 1 FROM "Demarches" d
-              WHERE d."visitId" = v.id AND d."atelierParticipation" = true
+              WHERE d."visitId" = v.id AND d."atelierParticipation" = true AND d."actionCollectiveId" = ac.id
             )
           WHERE ac."deletedAt" IS NULL
             AND ac.date >= ${debut}

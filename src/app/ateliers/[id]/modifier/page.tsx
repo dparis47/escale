@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { FormulaireAtelier } from '@/components/ateliers/formulaire-atelier'
 
 export default async function ModifierAtelierPage({
@@ -10,7 +11,7 @@ export default async function ModifierAtelierPage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') redirect('/ateliers')
+  if (!peutAcceder(session, 'ateliers', 'creer_modifier')) redirect('/ateliers')
 
   const { id: idStr } = await params
   const id = Number(idStr)

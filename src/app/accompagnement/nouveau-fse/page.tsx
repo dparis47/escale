@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import { FormulaireNouveauFSE } from '@/components/accompagnement/formulaire-nouveau-fse'
 
@@ -12,7 +13,7 @@ export default async function NouveauFSEPage({
 }) {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') redirect('/accompagnement')
+  if (!peutAcceder(session, 'accompagnements', 'creer_modifier')) redirect('/accompagnement')
 
   const params = await searchParams
   let personneInitiale: { id: number; nom: string; prenom: string } | null = null

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { peutAcceder } from '@/lib/permissions'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -11,7 +12,7 @@ interface Row { personId: bigint; id: bigint; nom: string; prenom: string }
 export async function POST(_request: Request, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') {
+  if (!peutAcceder(session, 'ateliers', 'gerer_participants')) {
     return NextResponse.json({ erreur: 'Accès refusé' }, { status: 403 })
   }
 

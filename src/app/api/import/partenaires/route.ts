@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import { parseISO } from '@/lib/dates'
 
 function parseDate(val: unknown): string | null {
@@ -25,7 +26,7 @@ function parseDate(val: unknown): string | null {
 export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') return NextResponse.json({ erreur: 'Accès interdit' }, { status: 403 })
+  if (!peutAcceder(session, 'accueil_partenaires', 'importer')) return NextResponse.json({ erreur: 'Accès interdit' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const dryRun = searchParams.get('dry_run') === 'true'

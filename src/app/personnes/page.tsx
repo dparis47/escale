@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
+import { peutAcceder } from '@/lib/permissions'
 import type { PersonneAvecStats } from '@/types/persons'
-import { Eye, Pencil, FilePlus } from 'lucide-react'
+import { Eye, Pencil, FilePlus, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { BoutonSupprimerPersonne } from '@/components/personnes/bouton-supprimer-personne'
@@ -56,7 +57,9 @@ export default async function ListePersonnesPage({
   ])
 
   const totalPages   = Math.ceil(total / PAR_PAGE)
-  const peutModifier = session.user.role !== 'DIRECTION'
+  const peutModifier      = peutAcceder(session, 'dossiers', 'modifier')
+  const peutSupprimerDossier      = peutAcceder(session, 'dossiers', 'supprimer')
+  const peutSupprimerAvecAccomp   = peutAcceder(session, 'dossiers', 'supprimer_avec_accompagnement')
 
   function urlPage(p: number) {
     const qs = new URLSearchParams()
@@ -73,6 +76,18 @@ export default async function ListePersonnesPage({
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">Dossiers individuels</h1>
             <BoutonExportPersonnes q={q || undefined} />
+            {peutAcceder(session, 'dossiers', 'importer') && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/import/personnes">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>Importer Excel</TooltipContent>
+              </Tooltip>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             {total} personne{total > 1 ? 's' : ''} accueillies
@@ -148,7 +163,7 @@ export default async function ListePersonnesPage({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Link href={`/personnes/${p.id}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 hover:text-blue-600">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
@@ -160,11 +175,11 @@ export default async function ListePersonnesPage({
                           <TooltipTrigger asChild>
                             <Link href={`/personnes/${p.id}/modifier`}>
                               {!p.estInscrit ? (
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600 hover:bg-purple-50 hover:text-purple-600">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                   <FilePlus className="h-4 w-4" />
                                 </Button>
                               ) : (
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600 hover:bg-amber-50 hover:text-amber-600">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               )}
@@ -173,7 +188,9 @@ export default async function ListePersonnesPage({
                           <TooltipContent>{!p.estInscrit ? 'Créer le dossier' : 'Modifier'}</TooltipContent>
                         </Tooltip>
                       )}
-                      <BoutonSupprimerPersonne id={p.id} />
+                      {peutSupprimerDossier && (p.accompagnements.every((a) => !!a.suiviEI) || peutSupprimerAvecAccomp) && (
+                        <BoutonSupprimerPersonne id={p.id} />
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -4,11 +4,12 @@ import { Prisma } from '@prisma/client'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { formaterDateCourte } from '@/lib/dates'
+import { peutAcceder } from '@/lib/permissions'
 
 export async function GET() {
   const session = await auth()
   if (!session) return new NextResponse(null, { status: 401 })
-  if (session.user.role === 'ACCUEIL') return new NextResponse(null, { status: 403 })
+  if (!peutAcceder(session, 'ateliers', 'exporter')) return new NextResponse(null, { status: 403 })
 
   const ateliers = await prisma.actionCollective.findMany({
     where: { deletedAt: null },
@@ -25,7 +26,7 @@ export async function GET() {
     ? await prisma.$queryRaw<CompteurRow[]>(Prisma.sql`
         SELECT
           ac.id,
-          COUNT(DISTINCT v."personId") FILTER (WHERE d."atelierParticipation" = true) AS total
+          COUNT(DISTINCT v."personId") FILTER (WHERE d."atelierParticipation" = true AND d."actionCollectiveId" = ac.id) AS total
         FROM "ActionCollective" ac
         LEFT JOIN "Visit" v
           ON  v.date        = ac.date

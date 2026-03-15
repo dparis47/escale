@@ -8,7 +8,7 @@
 
 | Enum | Valeurs | Usage |
 |---|---|---|
-| `Role` | ACCUEIL, TRAVAILLEUR_SOCIAL, DIRECTION | Rôle d'un utilisateur de l'application |
+| `Role` | ACCUEIL, TRAVAILLEUR_SOCIAL, DIRECTION, ADMIN | Rôle d'un utilisateur de l'application |
 | `Genre` | HOMME, FEMME | Genre d'une personne |
 | `SituationFamiliale` | MARIE, CELIBATAIRE, DIVORCE, SEPARE, CONCUBINAGE, VEUF, PARENT_ISOLE | Situation familiale d'une personne |
 | `OrientePar` | FRANCE_TRAVAIL, CMS, MAIRIE, CONNAISSANCE, CMPA, MAISON_DES_FAMILLES | Origine de l'orientation vers L'Escale |
@@ -32,6 +32,7 @@ Comptes de connexion des agents de L'Escale (accueil, travailleur social, direct
 | `email` | String (unique) | Adresse e-mail utilisée pour la connexion |
 | `password` | String | Mot de passe hashé (bcrypt) |
 | `role` | Role | Rôle dans l'application (ACCUEIL / TRAVAILLEUR_SOCIAL / DIRECTION) |
+| `permissionsOverrides` | Json? | Surcharges de permissions par rapport aux défauts du rôle (null = défauts) |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
 | `deletedAt` | DateTime? | Soft delete — null = actif |
@@ -202,7 +203,7 @@ Table unifiée regroupant les démarches pour deux contextes : visite accueil et
 | `parentaliteAutreInput` | String? | Parentalité autre (champ libre) |
 | **Ateliers de redynamisation** | | |
 | `atelierParticipation` | Boolean | Participation à un atelier |
-| `atelierNoms` | String[] | Noms des ateliers auxquels la personne a participé |
+| `actionCollectiveId` | Int? | Lien vers la séance d'atelier (ActionCollective) |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
 
@@ -494,3 +495,20 @@ Liste nominative (ou anonyme) des personnes reçues par un partenaire donné. Un
 | `dateRDV` | DateTime (Date) | Date effective du rendez-vous (peut différer de `date`) |
 | `createdAt` | DateTime | Date de création |
 | `deletedAt` | DateTime? | Soft delete — null = actif |
+
+---
+
+### `AuditLog` — Journal d'activité
+Trace chaque action significative (création, modification, suppression, restauration) réalisée par un utilisateur. Visible uniquement par le rôle ADMIN.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | Int (PK) | Identifiant unique |
+| `userId` | Int (FK → User) | Utilisateur ayant effectué l'action |
+| `action` | String | Type d'action : `creer`, `modifier`, `supprimer`, `restaurer` |
+| `entite` | String | Entité concernée : `visite`, `personne`, `accompagnement`, `atelier`, `utilisateur` |
+| `entiteId` | Int | Identifiant de l'entité concernée |
+| `details` | String? | Description courte en français |
+| `createdAt` | DateTime | Date et heure de l'action |
+
+Index : `(entite, entiteId)`, `(userId)`, `(createdAt)`

@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { RecherchePersonne } from './recherche-personne'
 import { SectionMotifs } from './section-motifs'
 import { DEMARCHE_VIDE, fromPrisma, type DemarcheChamps } from '@/lib/demarches'
-import { capitaliserPrenom } from '@/lib/dates'
+import { capitaliserPrenom, dateAujourdhui } from '@/lib/dates'
 
 type Mode = 'creation' | 'edition'
 
@@ -27,15 +27,22 @@ interface Props {
 
 export function FormulaireVisite({ dateISO, mode, visite }: Props) {
   const router = useRouter()
+  const visiteSansFiche = visite ? visite.person.estInscrit === false : false
   const [ouvert, setOuvert]             = useState(false)
-  const [estSansFiche, setEstSansFiche] = useState(!visite?.personId)
+  const [estSansFiche, setEstSansFiche] = useState(visiteSansFiche)
   const [genre, setGenre]               = useState<Genre | ''>(visite?.person?.genre ?? '')
   const [personId, setPersonId]         = useState<number | null>(visite?.personId ?? null)
   const [nomPersonne, setNomPersonne]   = useState(
-    visite?.person ? `${capitaliserPrenom(visite.person.prenom)} ${visite.person.nom.toUpperCase()}` : ''
+    visite?.person && visite.person.estInscrit
+      ? `${capitaliserPrenom(visite.person.prenom)} ${visite.person.nom.toUpperCase()}`
+      : ''
   )
-  const [nomLibre, setNomLibre]         = useState('')
-  const [prenomLibre, setPrenomLibre]   = useState('')
+  const [nomLibre, setNomLibre]         = useState(
+    visiteSansFiche ? (visite?.person?.nom ?? '') : ''
+  )
+  const [prenomLibre, setPrenomLibre]   = useState(
+    visiteSansFiche ? (visite?.person?.prenom ?? '') : ''
+  )
   const [orienteParFT, setOrienteParFT] = useState(visite?.orienteParFT ?? false)
   const [fse,          setFse]          = useState(visite?.fse ?? false)
   const [commentaire, setCommentaire]   = useState(visite?.commentaire ?? '')
@@ -45,6 +52,9 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
       : DEMARCHE_VIDE,
   )
 
+  const [dateVisite, setDateVisite]     = useState(
+    visite ? visite.date.toISOString().slice(0, 10) : dateISO
+  )
   const [erreur, setErreur]             = useState<string | null>(null)
   const [enChargement, setEnChargement] = useState(false)
 
@@ -124,9 +134,11 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
             demarches,
           }
         : {
+            date: dateVisite,
             genre,
-            nom:         estSansFiche ? (nomLibre || null) : null,
-            prenom:      estSansFiche ? (prenomLibre || null) : null,
+            ...(estSansFiche
+              ? { nom: nomLibre || null, prenom: prenomLibre || null }
+              : {}),
             orienteParFT,
             fse,
             commentaire: commentaire || null,
@@ -174,6 +186,20 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
           </DialogHeader>
 
           <div className="space-y-5 py-2">
+            {/* Date de la visite (édition uniquement) */}
+            {mode === 'edition' && (
+              <div className="space-y-1">
+                <Label htmlFor="dateVisite">Date de la visite</Label>
+                <Input
+                  id="dateVisite"
+                  type="date"
+                  value={dateVisite}
+                  max={dateAujourdhui()}
+                  onChange={(e) => setDateVisite(e.target.value)}
+                />
+              </div>
+            )}
+
             {/* Personne ou nom libre */}
             {!estSansFiche ? (
               <div className="space-y-1">
@@ -191,7 +217,7 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
                   onClick={basculerSansFiche}
                   className="text-xs text-muted-foreground underline-offset-2 hover:underline"
                 >
-                  Personne introuvable ? Saisir sans fiche
+                  Personne introuvable ? <span className="font-bold">Ajouter une personne</span>
                 </button>
               </div>
             ) : (
@@ -275,7 +301,7 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
             {/* Démarches */}
             <div className="space-y-2">
               <Label>Démarches</Label>
-              <SectionMotifs demarches={demarches} onDemarchesChange={setDemarches} />
+              <SectionMotifs demarches={demarches} onDemarchesChange={setDemarches} dateISO={dateVisite} />
             </div>
 
             {/* Commentaire */}

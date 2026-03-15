@@ -247,7 +247,7 @@ export function SectionContrats({ accompagnementId, contrats: contratsInit }: Pr
                 </Button>
                 <Button
                   variant="ghost" size="sm"
-                  className="text-destructive hover:text-destructive h-6 px-1.5 text-xs"
+                  className="text-muted-foreground hover:text-foreground h-6 px-1.5 text-xs"
                   onClick={() => supprimerContrat(c.id)}
                   disabled={ajouterOuvert || modifierContratId !== null}
                 >

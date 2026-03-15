@@ -77,7 +77,7 @@ export function BoutonEmargementSeance({ atelierId, fichiers: initFichiers, peut
           <Button
             variant="ghost"
             size="icon"
-            className={`h-8 w-8 ${nbFichiers > 0 ? 'text-green-600 hover:bg-green-50 hover:text-green-600' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`h-8 w-8 ${nbFichiers > 0 ? 'text-foreground hover:text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             onClick={() => setOuvert(!ouvert)}
             disabled={enCours}
           >

@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Textarea } from '@/components/ui/textarea'
 import { formaterDateISO } from '@/lib/dates'
 import { DialogueGererPrestataires } from '@/components/ateliers/dialogue-prestataire'
+import { DialogueGererThemes } from '@/components/ateliers/dialogue-theme'
 import type { CategorieAvecThemes, PrestataireOption } from '@/schemas/atelier'
 
-type Mode = 'creation' | 'edition'
+type Mode = 'creation' | 'edition' | 'edition-groupe'
 
 interface AtelierData {
   id:            number
@@ -24,9 +25,20 @@ interface AtelierData {
   notes:         string | null
 }
 
+interface SeanceExistante {
+  id:         number
+  date:       Date
+  themeAutre: string | null
+}
+
 interface Props {
-  mode:     Mode
-  atelier?: AtelierData
+  mode:                  Mode
+  atelier?:              AtelierData
+  seancesExistantes?:    SeanceExistante[]
+  retourUrl?:            string
+  defaultThemeId?:       number
+  defaultPrestataireId?: number
+  defaultLieu?:          string
 }
 
 interface Seance {
@@ -112,23 +124,85 @@ function InputTitre({
   )
 }
 
-export function FormulaireAtelier({ mode, atelier }: Props) {
+function SectionSeances({
+  seances,
+  onModifier,
+  onRetirer,
+  onAjouter,
+  themeNom,
+  suggestions,
+  titre,
+  minUne,
+}: {
+  seances:     Seance[]
+  onModifier:  (i: number, champ: keyof Seance, v: string) => void
+  onRetirer:   (i: number) => void
+  onAjouter:   () => void
+  themeNom:    string
+  suggestions: string[]
+  titre?:      string
+  minUne?:     boolean
+}) {
+  return (
+    <div className="space-y-2">
+      {titre && <p className="text-sm font-medium">{titre}</p>}
+      <div className="grid grid-cols-[180px_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
+        <span>Date <span className="text-destructive">*</span></span>
+        <span>{themeNom ? labelTitre(themeNom) : 'Titre de la séance'}</span>
+        <span />
+      </div>
+      {seances.map((s, i) => {
+        const titresDansLeFormulaire = seances
+          .filter((autre, j) => j !== i && autre.themeAutre.trim() !== '')
+          .map((autre) => autre.themeAutre)
+        const suggestionsEffectives = [...new Set([...suggestions, ...titresDansLeFormulaire])]
+        return (
+          <div key={i} className="grid grid-cols-[180px_1fr_auto] items-center gap-2">
+            <Input
+              type="date"
+              value={s.date}
+              onChange={(e) => onModifier(i, 'date', e.target.value)}
+            />
+            <InputTitre
+              value={s.themeAutre}
+              onChange={(v) => onModifier(i, 'themeAutre', v)}
+              suggestions={suggestionsEffectives}
+              placeholder={themeNom ? placeholderTitre(themeNom) : 'Optionnel…'}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={() => onRetirer(i)}
+              disabled={minUne && seances.length === 1}
+            >
+              ✕
+            </Button>
+          </div>
+        )
+      })}
+      <Button type="button" variant="outline" size="sm" onClick={onAjouter}>
+        + Ajouter une séance
+      </Button>
+    </div>
+  )
+}
+
+export function FormulaireAtelier({ mode, atelier, seancesExistantes, retourUrl, defaultThemeId, defaultPrestataireId, defaultLieu }: Props) {
   const router = useRouter()
 
-  const [themeId,       setThemeId]       = useState<number | null>(atelier?.themeId ?? null)
-  const [prestataireId, setPrestataireId] = useState<number | null>(atelier?.prestataireId ?? null)
-  const [lieu,          setLieu]          = useState(atelier?.lieu  ?? '')
+  const [themeId,       setThemeId]       = useState<number | null>(atelier?.themeId ?? defaultThemeId ?? null)
+  const [prestataireId, setPrestataireId] = useState<number | null>(atelier?.prestataireId ?? defaultPrestataireId ?? null)
+  const [lieu,          setLieu]          = useState(atelier?.lieu ?? defaultLieu ?? '')
   const [notes,         setNotes]         = useState(atelier?.notes ?? '')
 
   // Edition : date + titre uniques
   const [date,       setDate]       = useState(toInputDate(atelier?.date))
   const [themeAutre, setThemeAutre] = useState(atelier?.themeAutre ?? '')
 
-  // Création : liste de séances { date, themeAutre }
+  // Création / edition-groupe : liste de nouvelles séances { date, themeAutre }
   const [seances, setSeances] = useState<Seance[]>([{ date: '', themeAutre: '' }])
-
-  // Edition : nouvelles séances à ajouter
-  const [nouvellesSeances, setNouvellesSeances] = useState<Seance[]>([])
 
   const [categories,   setCategories]   = useState<CategorieAvecThemes[]>([])
   const [prestataires, setPrestataires] = useState<PrestataireOption[]>([])
@@ -137,11 +211,15 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
   const [enChargement, setEnChargement] = useState(false)
 
   // Charger catégories et prestataires au montage
-  useEffect(() => {
+  function chargerCategories() {
     fetch('/api/categories-ateliers')
       .then((r) => r.json())
       .then((data: CategorieAvecThemes[]) => setCategories(data))
       .catch(() => setCategories([]))
+  }
+
+  useEffect(() => {
+    chargerCategories()
   }, [])
 
   function chargerPrestataires() {
@@ -186,18 +264,6 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
     setSeances((prev) => prev.map((s, i) => i === index ? { ...s, [champ]: value } : s))
   }
 
-  function ajouterNouvelleSeance() {
-    setNouvellesSeances((prev) => [...prev, { date: '', themeAutre: '' }])
-  }
-
-  function retirerNouvelleSeance(index: number) {
-    setNouvellesSeances((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function modifierNouvelleSeance(index: number, champ: keyof Seance, value: string) {
-    setNouvellesSeances((prev) => prev.map((s, i) => i === index ? { ...s, [champ]: value } : s))
-  }
-
   async function soumettre() {
     setErreur('')
     setEnChargement(true)
@@ -239,8 +305,8 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
           return
         }
 
-        router.push('/ateliers')
-      } else {
+        router.push(retourUrl ?? '/ateliers')
+      } else if (mode === 'edition') {
         if (!date) { setErreur('La date est obligatoire.'); return }
 
         const body = {
@@ -264,10 +330,35 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
           return
         }
 
-        // Créer les nouvelles séances s'il y en a
-        const seancesValides = nouvellesSeances.filter((s) => s.date.trim() !== '')
+        router.push(retourUrl ?? `/ateliers/${atelier!.id}`)
+        router.refresh()
+      } else {
+        // edition-groupe : PATCH champs partagés sur toutes les séances existantes + POST nouvelles
+        const ids = seancesExistantes?.map((s) => s.id) ?? []
+
+        for (const seanceId of ids) {
+          const body = {
+            themeId,
+            prestataireId: prestataireId,
+            lieu:          lieu  || undefined,
+            notes:         notes || undefined,
+          }
+          const res = await fetch(`/api/ateliers/${seanceId}`, {
+            method:  'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+          })
+          if (!res.ok) {
+            const data = await res.json() as { erreur?: string }
+            setErreur(data.erreur ?? 'Erreur lors de la mise à jour.')
+            return
+          }
+        }
+
+        // Créer les nouvelles séances
+        const seancesValides = seances.filter((s) => s.date.trim() !== '')
         if (seancesValides.length > 0) {
-          const bodyNouvelles = {
+          const body = {
             themeId,
             prestataireId: prestataireId ?? undefined,
             lieu:          lieu          || undefined,
@@ -277,21 +368,19 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
             })),
             notes: notes || undefined,
           }
-
-          const resNouvelles = await fetch('/api/ateliers', {
+          const res = await fetch('/api/ateliers', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(bodyNouvelles),
+            body:    JSON.stringify(body),
           })
-
-          if (!resNouvelles.ok) {
-            const data = await resNouvelles.json() as { erreur?: string }
+          if (!res.ok) {
+            const data = await res.json() as { erreur?: string }
             setErreur(data.erreur ?? 'Erreur lors de la création des nouvelles séances.')
             return
           }
         }
 
-        router.push(`/ateliers/${atelier!.id}`)
+        router.push(retourUrl ?? `/ateliers/groupe/${ids[0] ?? atelier?.id}`)
         router.refresh()
       }
     } catch {
@@ -306,72 +395,44 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
 
       {/* Thème (groupé par catégorie) */}
       <Champ label="Thème" required>
-        <Select
-          value={themeId ? String(themeId) : undefined}
-          onValueChange={(v) => setThemeId(Number(v))}
-        >
-          <SelectTrigger className="max-w-md">
-            <SelectValue placeholder="Sélectionner un thème…" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((cat, ci) => (
-              <SelectGroup key={cat.id}>
-                {ci > 0 && <div className="mx-1 my-1.5 h-px bg-border" />}
-                <SelectLabel className="px-2 py-1.5 text-sm font-semibold text-foreground uppercase tracking-wide">
-                  {cat.nom}
-                </SelectLabel>
-                {cat.themes.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)} className="pl-5">{t.nom}</SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex max-w-md items-center gap-1">
+          <Select
+            value={themeId ? String(themeId) : undefined}
+            onValueChange={(v) => setThemeId(Number(v))}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Sélectionner un thème…" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((cat, ci) => (
+                <SelectGroup key={cat.id}>
+                  {ci > 0 && <div className="mx-1 my-1.5 h-px bg-border" />}
+                  <SelectLabel className="px-2 py-1.5 text-sm font-semibold text-foreground uppercase tracking-wide">
+                    {cat.nom}
+                  </SelectLabel>
+                  {cat.themes.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)} className="pl-5">{t.nom}</SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogueGererThemes categories={categories} onRefresh={chargerCategories} />
+        </div>
       </Champ>
 
-      {/* Séances (création) ou date + titre (édition) */}
+      {/* Séances selon le mode */}
       {mode === 'creation' ? (
-        <div className="space-y-2">
-          <div className="grid grid-cols-[180px_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
-            <span>Date <span className="text-destructive">*</span></span>
-            <span>{themeNom ? labelTitre(themeNom) : 'Titre de la séance'}</span>
-            <span />
-          </div>
-          {seances.map((s, i) => {
-            const titresDansLeFormulaire = seances
-              .filter((autre, j) => j !== i && autre.themeAutre.trim() !== '')
-              .map((autre) => autre.themeAutre)
-            const suggestionsEffectives = [...new Set([...suggestions, ...titresDansLeFormulaire])]
-            return (
-            <div key={i} className="grid grid-cols-[180px_1fr_auto] items-center gap-2">
-              <Input
-                type="date"
-                value={s.date}
-                onChange={(e) => modifierSeance(i, 'date', e.target.value)}
-              />
-              <InputTitre
-                value={s.themeAutre}
-                onChange={(v) => modifierSeance(i, 'themeAutre', v)}
-                suggestions={suggestionsEffectives}
-                placeholder={themeNom ? placeholderTitre(themeNom) : 'Optionnel…'}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={() => retirerSeance(i)}
-                disabled={seances.length === 1}
-              >
-                ✕
-              </Button>
-            </div>
-          )})}
-          <Button type="button" variant="outline" size="sm" onClick={ajouterSeance}>
-            + Ajouter une séance
-          </Button>
-        </div>
-      ) : (
+        <SectionSeances
+          seances={seances}
+          onModifier={modifierSeance}
+          onRetirer={retirerSeance}
+          onAjouter={ajouterSeance}
+          themeNom={themeNom}
+          suggestions={suggestions}
+          minUne
+        />
+      ) : mode === 'edition' ? (
         <>
           <Champ label="Date" required>
             <Input
@@ -390,51 +451,35 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
               className="max-w-sm"
             />
           </Champ>
-
-          {/* Nouvelles séances */}
-          {nouvellesSeances.length > 0 && (
-            <div className="space-y-2 border-t pt-4">
-              <p className="text-sm font-medium text-muted-foreground">Nouvelles séances</p>
-              <div className="grid grid-cols-[180px_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
-                <span>Date <span className="text-destructive">*</span></span>
-                <span>{themeNom ? labelTitre(themeNom) : 'Titre de la séance'}</span>
-                <span />
-              </div>
-              {nouvellesSeances.map((s, i) => {
-                const titresDansLeFormulaire = nouvellesSeances
-                  .filter((autre, j) => j !== i && autre.themeAutre.trim() !== '')
-                  .map((autre) => autre.themeAutre)
-                const suggestionsEffectives = [...new Set([...suggestions, ...titresDansLeFormulaire])]
-                return (
-                  <div key={i} className="grid grid-cols-[180px_1fr_auto] items-center gap-2">
-                    <Input
-                      type="date"
-                      value={s.date}
-                      onChange={(e) => modifierNouvelleSeance(i, 'date', e.target.value)}
-                    />
-                    <InputTitre
-                      value={s.themeAutre}
-                      onChange={(v) => modifierNouvelleSeance(i, 'themeAutre', v)}
-                      suggestions={suggestionsEffectives}
-                      placeholder={themeNom ? placeholderTitre(themeNom) : 'Optionnel…'}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground"
-                      onClick={() => retirerNouvelleSeance(i)}
-                    >
-                      ✕
-                    </Button>
+        </>
+      ) : (
+        <>
+          {/* Séances existantes (lecture seule) */}
+          {seancesExistantes && seancesExistantes.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Séances existantes</p>
+              <div className="rounded-md border divide-y text-sm">
+                {seancesExistantes.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between px-3 py-2">
+                    <span>
+                      {formaterDateISO(new Date(s.date))}
+                      {s.themeAutre && <span className="ml-2 text-muted-foreground">{s.themeAutre}</span>}
+                    </span>
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
           )}
-          <Button type="button" variant="outline" size="sm" onClick={ajouterNouvelleSeance}>
-            + Ajouter une séance
-          </Button>
+          {/* Nouvelles séances */}
+          <SectionSeances
+            seances={seances}
+            onModifier={modifierSeance}
+            onRetirer={retirerSeance}
+            onAjouter={ajouterSeance}
+            themeNom={themeNom}
+            suggestions={suggestions}
+            titre="Ajouter des séances"
+          />
         </>
       )}
 
@@ -485,7 +530,7 @@ export function FormulaireAtelier({ mode, atelier }: Props) {
 
       <div className="flex gap-3 pt-2">
         <Button onClick={soumettre} disabled={enChargement}>
-          {enChargement ? 'Enregistrement…' : mode === 'creation' ? 'Créer les séances' : 'Enregistrer'}
+          {enChargement ? 'Enregistrement…' : mode === 'creation' ? 'Créer les séances' : mode === 'edition-groupe' ? 'Enregistrer l\u2019atelier' : 'Enregistrer'}
         </Button>
         <Button variant="outline" onClick={() => router.back()} disabled={enChargement}>
           Annuler

@@ -48,6 +48,7 @@ Le fichier `docs/base-de-donnees.md` documente toutes les tables et leurs champs
 | `ACCUEIL` | Saisit le tableau journalier, crée et met à jour les fiches personnes |
 | `TRAVAILLEUR_SOCIAL` | Gère les fiches personnes, accompagnements, bilans |
 | `DIRECTION` | Consulte et génère les bilans |
+| `ADMIN` | Administrateur technique — gère les utilisateurs, permissions et archives |
 
 ## Modèle de données — décisions d'architecture
 

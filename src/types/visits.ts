@@ -6,5 +6,7 @@ export type VisiteAvecRelations = Visit & {
   }
   saisiePar:  Pick<User, 'prenom' | 'nom'> | null
   modifiePar: Pick<User, 'prenom' | 'nom'> | null
-  demarches:  Demarches | null
+  demarches:  (Demarches & {
+    actionCollective?: { themeId: number; themeRef?: { nom: string } } | null
+  }) | null
 }

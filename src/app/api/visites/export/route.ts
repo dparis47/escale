@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { peutAcceder } from '@/lib/permissions'
 import {
   ARBRE_DEMARCHES,
   champsTheme,
@@ -13,7 +14,7 @@ import {
 export async function GET(req: Request) {
   const session = await auth()
   if (!session) return new NextResponse(null, { status: 401 })
-  if (session.user.role === 'ACCUEIL') return new NextResponse(null, { status: 403 })
+  if (!peutAcceder(session, 'tableau_journalier', 'exporter')) return new NextResponse(null, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const annee = Number(searchParams.get('annee') ?? new Date().getFullYear())
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
     },
     include: {
       person:    { select: { nom: true, prenom: true, genre: true } },
-      demarches: true,
+      demarches: { include: { actionCollective: { select: { themeRef: { select: { nom: true } } } } } },
     },
     orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
   })
@@ -111,18 +112,23 @@ export async function GET(req: Request) {
       }
     }
 
+    // Nom du thème atelier (si lié à une ActionCollective)
+    const demarches = v.demarches as { actionCollective?: { themeRef?: { nom: string } } | null } | null
+    row['Thème atelier'] = demarches?.actionCollective?.themeRef?.nom ?? ''
+
     row['Commentaire'] = v.commentaire ?? ''
     return row
   })
 
   const ws = XLSX.utils.json_to_sheet(lignes)
-  // Largeurs : 5 colonnes fixes + N démarches + commentaire
+  // Largeurs : 5 colonnes fixes + N démarches + thème atelier + commentaire
   const colWidths: { wch: number }[] = [
     { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 5 }, { wch: 10 },
   ]
   for (const col of colsDemarches) {
     colWidths.push({ wch: col.type === 'bool' ? 4 : col.type === 'nombre' ? 6 : 18 })
   }
+  colWidths.push({ wch: 24 }) // Thème atelier
   colWidths.push({ wch: 30 }) // Commentaire
   ws['!cols'] = colWidths
 

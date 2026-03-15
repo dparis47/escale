@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
+import { peutAcceder } from '@/lib/permissions'
 import { FormulaireImport } from '@/components/import/formulaire-import'
 
 export default async function ImportAteliersPage() {
   const session = await auth()
   if (!session) redirect('/login')
-  if (session.user.role !== 'TRAVAILLEUR_SOCIAL') redirect('/')
+  if (!peutAcceder(session, 'ateliers', 'importer')) redirect('/')
 
   return (
     <main className="container mx-auto max-w-3xl px-4 py-6">

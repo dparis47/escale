@@ -23,35 +23,46 @@ interface Props {
   champs:   DemarcheChamps
   onChange: (champs: DemarcheChamps) => void
   disabled?: boolean
+  dateISO?: string
 }
 
 // ─── Thème ateliers dynamique ─────────────────────────────────────────────────
 
-type CategorieThemes = { nom: string; themes: string[] }
-
-/** Première lettre en majuscule */
-function majuscule(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1)
+type CategorieAvecThemes = {
+  id: number
+  nom: string
+  themes: { id: number; nom: string }[]
 }
 
 function ThemeAteliersDynamiques({
   champs,
   onChange,
   disabled,
-  categoriesAteliers,
 }: {
-  champs:              DemarcheChamps
-  onChange:            (c: DemarcheChamps) => void
-  disabled?:           boolean
-  categoriesAteliers:  CategorieThemes[]
+  champs:   DemarcheChamps
+  onChange: (c: DemarcheChamps) => void
+  disabled?: boolean
+  dateISO?: string
 }) {
-  const valeur = champs.atelierNoms[0] ?? ''
+  const [categories, setCategories] = useState<CategorieAvecThemes[]>([])
+  const [chargement, setChargement] = useState(false)
 
-  function choisir(nom: string) {
-    if (nom === '__aucun__') {
-      onChange({ ...champs, atelierNoms: [], atelierParticipation: false })
+  useEffect(() => {
+    setChargement(true)
+    fetch('/api/categories-ateliers')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]))
+      .finally(() => setChargement(false))
+  }, [])
+
+  const valeur = champs.themeAtelierId?.toString() ?? ''
+
+  function choisir(val: string) {
+    if (val === '__aucun__') {
+      onChange({ ...champs, themeAtelierId: null, actionCollectiveId: null, atelierParticipation: false })
     } else {
-      onChange({ ...champs, atelierNoms: [nom], atelierParticipation: true })
+      onChange({ ...champs, themeAtelierId: Number(val), actionCollectiveId: null, atelierParticipation: true })
     }
   }
 
@@ -64,23 +75,21 @@ function ThemeAteliersDynamiques({
       <Select
         value={valeur || '__aucun__'}
         onValueChange={choisir}
-        disabled={disabled}
+        disabled={disabled || chargement}
       >
         <SelectTrigger className="max-w-md">
-          <SelectValue placeholder="Aucun atelier" />
+          <SelectValue placeholder={chargement ? 'Chargement…' : 'Aucun atelier'} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__aucun__">Aucun atelier</SelectItem>
-          {categoriesAteliers.map((cat, ci) => (
-            <SelectGroup key={cat.nom}>
+          {categories.map((cat, ci) => (
+            <SelectGroup key={cat.id}>
               {ci > 0 && <div className="mx-1 my-1.5 h-px bg-border" />}
-              <SelectLabel className="px-2 py-1.5 text-sm font-semibold text-foreground uppercase tracking-wide">
-                {majuscule(cat.nom)}
+              <SelectLabel className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {cat.nom}
               </SelectLabel>
-              {cat.themes.map((nom) => (
-                <SelectItem key={nom} value={nom} className="pl-5">
-                  {majuscule(nom)}
-                </SelectItem>
+              {cat.themes.map((t) => (
+                <SelectItem key={t.id} value={String(t.id)} className="pl-5">{t.nom}</SelectItem>
               ))}
             </SelectGroup>
           ))}
@@ -110,7 +119,6 @@ function Feuille({
     if (checked) {
       if (noeud.champNombre)  next = { ...next, [noeud.champNombre]:  null }
       if (noeud.champTexte)   next = { ...next, [noeud.champTexte]:   null }
-      if (noeud.champTableau) next = { ...next, [noeud.champTableau]: [] }
     }
     onChange(next)
   }
@@ -376,18 +384,10 @@ function Theme({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export function ArbreDemarches({ champs, onChange, disabled }: Props) {
+export function ArbreDemarches({ champs, onChange, disabled, dateISO }: Props) {
   const [sectionsOuvertes, setSectionsOuvertes] = useState<Set<string>>(
     () => sectionsOuvertesInitiales(champs),
   )
-  const [categoriesAteliers, setCategoriesAteliers] = useState<CategorieThemes[]>([])
-
-  useEffect(() => {
-    fetch('/api/ateliers/noms-demarches')
-      .then((r) => r.json())
-      .then((d: { categories?: CategorieThemes[] }) => setCategoriesAteliers(d.categories ?? []))
-      .catch(() => {})
-  }, [])
 
   // Thèmes standards (tout sauf "ateliers" qui a son propre rendu)
   const themesSansAteliers = ARBRE_DEMARCHES.filter((t) => t.id !== 'ateliers')
@@ -406,12 +406,12 @@ export function ArbreDemarches({ champs, onChange, disabled }: Props) {
         />
       ))}
 
-      {/* Thème ateliers avec cases à cocher dynamiques */}
+      {/* Thème ateliers : séances du jour */}
       <ThemeAteliersDynamiques
         champs={champs}
         onChange={onChange}
         disabled={disabled}
-        categoriesAteliers={categoriesAteliers}
+        dateISO={dateISO}
       />
     </div>
   )

@@ -66,7 +66,7 @@ export function SectionSuiviFSE({
     <>
       <h2
         onClick={() => setOuvert((o) => !o)}
-        className="mb-3 mt-6 flex cursor-pointer select-none items-center gap-2 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+        className="mb-3 mt-6 flex cursor-pointer select-none items-center gap-2 rounded-md bg-blue-50 px-2 py-1 text-sm font-semibold uppercase tracking-wide text-blue-700 hover:text-blue-800"
       >
         <ChevronRight className={`h-3.5 w-3.5 shrink-0 transition-transform ${ouvert ? 'rotate-90' : ''}`} />
         Suivi FSE+
