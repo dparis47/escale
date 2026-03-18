@@ -21,6 +21,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const personne = await prisma.person.findFirst({
     where: { id, deletedAt: null },
     include: {
+      saisiePar:  { select: { prenom: true, nom: true } },
+      modifiePar: { select: { prenom: true, nom: true } },
       _count: {
         select: { visites: { where: { deletedAt: null } } },
       },
@@ -80,6 +82,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ...rest,
       estInscrit: true,
       dateActualisation: new Date(),
+      modifieParId: Number(session.user.id),
       ...(email !== undefined     ? { email: email === '' ? null : email }                                : {}),
       ...(dateNaissance !== undefined     ? { dateNaissance:     dateNaissance     ? parseISO(dateNaissance)     : null } : {}),
       ...(dateInscriptionFT !== undefined ? { dateInscriptionFT: dateInscriptionFT ? parseISO(dateInscriptionFT) : null } : {}),

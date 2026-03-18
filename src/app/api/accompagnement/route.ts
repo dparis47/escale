@@ -121,6 +121,7 @@ export async function POST(request: Request) {
       data: {
         personId:   resolvedPersonId,
         dateEntree: parseISO(dateEntree),
+        saisieParId: Number(session.user.id),
         dateSortie: dateSortie ? parseISO(dateSortie) : null,
         ressourceRSA,
         ressourceASS,

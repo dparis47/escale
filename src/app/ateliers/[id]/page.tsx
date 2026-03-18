@@ -6,6 +6,7 @@ import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { Button } from '@/components/ui/button'
 import { peutAcceder } from '@/lib/permissions'
 import { SectionParticipants } from '@/components/ateliers/section-participants'
+import { TooltipAudit } from '@/components/ui/tooltip-audit'
 
 export default async function DetailAtelierPage({
   params,
@@ -23,6 +24,8 @@ export default async function DetailAtelierPage({
   const atelier = await prisma.actionCollective.findFirst({
     where: { id, deletedAt: null },
     include: {
+      saisiePar:  { select: { prenom: true, nom: true } },
+      modifiePar: { select: { prenom: true, nom: true } },
       themeRef: { include: { categorie: true } },
       prestataire: true,
       participants: {
@@ -44,9 +47,17 @@ export default async function DetailAtelierPage({
       {/* En-tête */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-700">
-            {atelier.themeRef.nom}
-          </h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-blue-700">
+              {atelier.themeRef.nom}
+            </h1>
+            <TooltipAudit
+              saisiePar={atelier.saisiePar}
+              modifiePar={atelier.modifiePar}
+              createdAt={atelier.createdAt}
+              updatedAt={atelier.updatedAt}
+            />
+          </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {atelier.themeRef.categorie.nom}
           </p>

@@ -22,6 +22,8 @@ export async function GET(_request: Request, { params }: Params) {
   const atelier = await prisma.actionCollective.findFirst({
     where: { id, deletedAt: null },
     include: {
+      saisiePar:  { select: { prenom: true, nom: true } },
+      modifiePar: { select: { prenom: true, nom: true } },
       themeRef: { include: { categorie: true } },
       prestataire: true,
       participants: {
@@ -71,6 +73,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const maj = await prisma.actionCollective.update({
     where: { id },
     data: {
+      modifieParId: Number(session.user.id),
       ...(themeId       !== undefined ? { themeId }                        : {}),
       ...(themeAutre    !== undefined ? { themeAutre: themeAutre || null }  : {}),
       ...(prestataireId !== undefined ? { prestataireId }                  : {}),

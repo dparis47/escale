@@ -77,6 +77,7 @@ export async function POST(request: Request) {
       dateNaissance:     dateNaissance     ? parseISO(dateNaissance)     : null,
       dateInscriptionFT: dateInscriptionFT ? parseISO(dateInscriptionFT) : null,
       dateActualisation: new Date(),
+      saisieParId:       Number(session.user.id),
     },
   })
 

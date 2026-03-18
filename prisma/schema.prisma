@@ -94,7 +94,17 @@ model User {
 
   visitesSaisies   Visit[]    @relation("VisitSaisiePar")
   visitesModifiees Visit[]    @relation("VisitModifiePar")
-  auditLogs        AuditLog[]
+
+  personnesSaisies   Person[] @relation("PersonSaisiePar")
+  personnesModifiees Person[] @relation("PersonModifiePar")
+
+  accompagnementsSaisis   Accompagnement[] @relation("AccompagnementSaisiePar")
+  accompagnementsModifies Accompagnement[] @relation("AccompagnementModifiePar")
+
+  ateliersSaisis   ActionCollective[] @relation("ActionCollectiveSaisiePar")
+  ateliersModifies ActionCollective[] @relation("ActionCollectiveModifiePar")
+
+  auditLogs AuditLog[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -155,6 +165,12 @@ model Person {
   ressources Ressource[]
   orientePar OrientePar?
   enASID     Boolean     @default(false)
+
+  // Audit trail
+  saisieParId  Int?
+  saisiePar    User? @relation("PersonSaisiePar", fields: [saisieParId], references: [id])
+  modifieParId Int?
+  modifiePar   User? @relation("PersonModifiePar", fields: [modifieParId], references: [id])
 
   // Relations
   visites                Visit[]
@@ -395,6 +411,12 @@ model Accompagnement {
   // true = créé automatiquement (import Excel) — à compléter par un travailleur social
   estBrouillon Boolean @default(false)
 
+  // Audit trail
+  saisieParId  Int?
+  saisiePar    User? @relation("AccompagnementSaisiePar", fields: [saisieParId], references: [id])
+  modifieParId Int?
+  modifiePar   User? @relation("AccompagnementModifiePar", fields: [modifieParId], references: [id])
+
   // Relations
   demarches  Demarches?
   entretiens Entretien[]
@@ -599,6 +621,12 @@ model ActionCollective {
   lieu  String?
   date  DateTime @db.Date
   notes String?
+
+  // Audit trail
+  saisieParId  Int?
+  saisiePar    User? @relation("ActionCollectiveSaisiePar", fields: [saisieParId], references: [id])
+  modifieParId Int?
+  modifiePar   User? @relation("ActionCollectiveModifiePar", fields: [modifieParId], references: [id])
 
   participants ParticipationAtelier[]
   fichiers     FichierEmargement[]

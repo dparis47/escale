@@ -20,6 +20,7 @@ import { BoutonFinaliserAccompagnement } from '@/components/accompagnement/bouto
 import { PopupFichePersonne } from '@/components/accompagnement/popup-fiche-personne'
 import { BoutonExportPDFAccompagnement } from '@/components/accompagnement/bouton-export-pdf'
 import { peutAcceder } from '@/lib/permissions'
+import { TooltipAudit } from '@/components/ui/tooltip-audit'
 import type { SujetEntretien } from '@prisma/client'
 
 function SectionTitre({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,8 @@ export default async function FicheAccompagnementPage({
   const accompagnement = await prisma.accompagnement.findFirst({
     where: { id, deletedAt: null },
     include: {
+      saisiePar:  { select: { prenom: true, nom: true } },
+      modifiePar: { select: { prenom: true, nom: true } },
       person: {
         select: {
           id: true, nom: true, prenom: true, genre: true,
@@ -130,6 +133,12 @@ export default async function FicheAccompagnementPage({
               <h1 className="text-2xl font-bold text-blue-700">
                 {accompagnement.person.nom.toUpperCase()} {capitaliserPrenom(accompagnement.person.prenom)}
               </h1>
+              <TooltipAudit
+                saisiePar={accompagnement.saisiePar}
+                modifiePar={accompagnement.modifiePar}
+                createdAt={accompagnement.createdAt}
+                updatedAt={accompagnement.updatedAt}
+              />
               {!estEI && (
                 <BoutonExportPDFAccompagnement
                   id={id}

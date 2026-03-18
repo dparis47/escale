@@ -85,6 +85,7 @@ export async function POST(request: Request) {
       lieu:          lieu          || null,
       date:          parseISO(s.date),
       notes:         notes         || null,
+      saisieParId:   Number(session.user.id),
     })),
   })
 

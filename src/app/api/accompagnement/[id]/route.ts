@@ -28,6 +28,8 @@ export async function GET(
   const accompagnement = await prisma.accompagnement.findFirst({
     where: { id, deletedAt: null },
     include: {
+      saisiePar:  { select: { prenom: true, nom: true } },
+      modifiePar: { select: { prenom: true, nom: true } },
       person:   { select: { id: true, nom: true, prenom: true, genre: true, dateNaissance: true } },
       sortie:   true,
       demarches: true,
@@ -97,6 +99,7 @@ export async function PATCH(
   const updated = await prisma.accompagnement.update({
     where: { id },
     data: {
+      modifieParId: Number(session.user.id),
       ...(dateEntree             !== undefined ? { dateEntree: parseISO(dateEntree) }        : {}),
       ...(dateSortie             !== undefined ? { dateSortie: dateSortie ? parseISO(dateSortie) : null } : {}),
       ...(observation            !== undefined ? { observation }                             : {}),

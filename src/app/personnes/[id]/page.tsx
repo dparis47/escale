@@ -17,6 +17,7 @@ import { SectionDemarches } from '@/components/accompagnement/section-demarches'
 import type { SujetEntretien } from '@prisma/client'
 import { peutAcceder } from '@/lib/permissions'
 import { fromPrisma, themesAvecFeuilles } from '@/lib/demarches'
+import { TooltipAudit } from '@/components/ui/tooltip-audit'
 
 function SectionTitre({ children }: { children: React.ReactNode }) {
   return (
@@ -41,6 +42,8 @@ export default async function FichePersonnePage({
   const personne = await prisma.person.findFirst({
     where: { id, deletedAt: null },
     include: {
+      saisiePar:  { select: { prenom: true, nom: true } },
+      modifiePar: { select: { prenom: true, nom: true } },
       _count: { select: { visites: { where: { deletedAt: null } } } },
       visites: {
         where:   { deletedAt: null },
@@ -143,6 +146,12 @@ export default async function FichePersonnePage({
               <h1 className="text-2xl font-bold text-blue-700">
                 {personne.nom.toUpperCase()} {capitaliserPrenom(personne.prenom)}
               </h1>
+              <TooltipAudit
+                saisiePar={personne.saisiePar}
+                modifiePar={personne.modifiePar}
+                createdAt={personne.createdAt}
+                updatedAt={personne.updatedAt}
+              />
               <BoutonExportPDF id={id} nom={personne.nom} prenom={personne.prenom} />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">

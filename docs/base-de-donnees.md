@@ -77,6 +77,8 @@ Sert de dossier individuel si le formulaire de la personne est complet (`estInsc
 | `ressources` | Ressource[] | Sources de revenus actuelles |
 | `orientePar` | OrientePar? | Qui a orienté la personne vers L'Escale |
 | `enASID` | Boolean | Indique si la personne est ou a été en suivi ASID |
+| `saisieParId` | Int? | ID de l'utilisateur ayant créé la fiche (audit trail) |
+| `modifieParId` | Int? | ID de l'utilisateur ayant modifié la fiche en dernier (audit trail) |
 | `cvs` | Cv[] | CV et lettres de motivation (tous accompagnements) |
 | `createdAt` | DateTime | Date de création de la fiche |
 | `updatedAt` | DateTime | Date de dernière modification |
@@ -259,6 +261,8 @@ Coquille commune pour tous les accompagnements. Porte les données partagées : 
 | `logementExclusion` | Boolean | En situation d'exclusion du logement à l'entrée |
 | `estBrouillon` | Boolean | `true` = créé automatiquement (import Excel) — à compléter par un travailleur social |
 | `observation` | String? | Observations libres |
+| `saisieParId` | Int? | ID de l'utilisateur ayant créé l'accompagnement (audit trail) |
+| `modifieParId` | Int? | ID de l'utilisateur ayant modifié l'accompagnement en dernier (audit trail) |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
 | `deletedAt` | DateTime? | Soft delete — null = actif |
@@ -436,6 +440,8 @@ Séances d'ateliers collectifs organisés par L'Escale. Le thème est une réfé
 | `lieu` | String? | Lieu de l'atelier |
 | `date` | DateTime (Date) | Date de la séance |
 | `notes` | String? | Notes libres |
+| `saisieParId` | Int? | ID de l'utilisateur ayant créé l'atelier (audit trail) |
+| `modifieParId` | Int? | ID de l'utilisateur ayant modifié l'atelier en dernier (audit trail) |
 | `createdAt` | DateTime | Date de création |
 | `updatedAt` | DateTime | Date de dernière modification |
 | `deletedAt` | DateTime? | Soft delete — null = actif |
