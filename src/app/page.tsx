@@ -6,6 +6,7 @@ import { BreadcrumbVues } from '@/components/tableau-journalier/breadcrumb-vues'
 import { NavigationDate } from '@/components/tableau-journalier/navigation-date'
 import { TableauVisites } from '@/components/tableau-journalier/tableau-visites'
 import { FormulaireVisite } from '@/components/tableau-journalier/formulaire-visite'
+import { GrapheVisites, type DonneeGraphe } from '@/components/tableau-journalier/graphe-visites'
 
 export default async function TableauJournalierPage({
   searchParams,
@@ -32,8 +33,9 @@ export default async function TableauJournalierPage({
     : new Date(`${annee}-${String(mois + 1).padStart(2, '0')}-01T00:00:00.000Z`)
   const debutAnnee      = new Date(`${annee}-01-01T00:00:00.000Z`)
   const debutAnneeSuivante = new Date(`${annee + 1}-01-01T00:00:00.000Z`)
+  const debutAnneeN2    = new Date(`${annee - 2}-01-01T00:00:00.000Z`)
 
-  const [visitesRaw, nbVisitesMois, nbVisitesAnnee, countsPartenairesRaw] = await Promise.all([
+  const [visitesRaw, nbVisitesMois, nbVisitesAnnee, countsPartenairesRaw, sparkRaw] = await Promise.all([
     prisma.visit.findMany({
       where: { date: parseISO(dateISO), deletedAt: null },
       include: {
@@ -60,6 +62,16 @@ export default async function TableauJournalierPage({
       WHERE date = ${parseISO(dateISO)} AND "deletedAt" IS NULL
       GROUP BY partenaire
       ORDER BY partenaire
+    `,
+    prisma.$queryRaw<{ annee: number; mois: number; nb: bigint }[]>`
+      SELECT EXTRACT(YEAR FROM date)::int AS annee,
+             EXTRACT(MONTH FROM date)::int AS mois,
+             COUNT(*) AS nb
+      FROM "Visit"
+      WHERE date >= ${debutAnneeN2} AND date < ${debutAnneeSuivante}
+        AND "deletedAt" IS NULL
+      GROUP BY annee, mois
+      ORDER BY annee, mois
     `,
   ])
 
@@ -91,6 +103,18 @@ export default async function TableauJournalierPage({
     const cmp = nomA.localeCompare(nomB, 'fr')
     if (cmp !== 0) return cmp
     return (a.person.prenom).toUpperCase().localeCompare((b.person.prenom).toUpperCase(), 'fr')
+  })
+
+  // Données sparkbar annuel
+  const LABELS_MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+  const comptesParAnneeMois = new Map<string, number>()
+  for (const r of sparkRaw) comptesParAnneeMois.set(`${r.annee}-${r.mois}`, Number(r.nb))
+  const donneesGrapheAnnuel: DonneeGraphe[] = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1
+    const valeur = comptesParAnneeMois.get(`${annee}-${m}`) ?? 0
+    const n1 = comptesParAnneeMois.get(`${annee - 1}-${m}`) ?? 0
+    const n2 = comptesParAnneeMois.get(`${annee - 2}-${m}`) ?? 0
+    return { label: LABELS_MOIS[i], valeur, reference: Math.round((n1 + n2) / 2), actif: m === mois }
   })
 
   const labelMois = new Date(dateISO + 'T00:00:00.000Z').toLocaleDateString('fr-FR', {
@@ -139,6 +163,8 @@ export default async function TableauJournalierPage({
           </span>
         )}
       </div>
+
+      <GrapheVisites donnees={donneesGrapheAnnuel} />
 
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
