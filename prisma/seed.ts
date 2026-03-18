@@ -341,21 +341,44 @@ async function main() {
     },
   })
 
-  // ── Action collective (atelier) ────────────────────────────
-  // Chercher le thème "Cours d'Informatique" créé par la migration
-  const themeInfo = await prisma.themeAtelierRef.findFirst({
-    where: { nom: "Cours d'Informatique", deletedAt: null },
+  // ── Catégories, thèmes et prestataires d'ateliers ──────────
+  const catNumerique = await prisma.categorieAtelier.upsert({
+    where: { nom: 'Numérique' },
+    update: {},
+    create: { nom: 'Numérique', couleur: 'blue', ordre: 1 },
   })
 
-  const themeCuisine = await prisma.themeAtelierRef.findFirst({
-    where: { nom: 'Cuisine', deletedAt: null },
+  const catBienEtre = await prisma.categorieAtelier.upsert({
+    where: { nom: 'Bien-être' },
+    update: {},
+    create: { nom: 'Bien-être', couleur: 'green', ordre: 2 },
   })
+
+  const themeInfo = await prisma.themeAtelierRef.upsert({
+    where: { categorieId_nom: { categorieId: catNumerique.id, nom: "Cours d'Informatique" } },
+    update: {},
+    create: { nom: "Cours d'Informatique", categorieId: catNumerique.id, ordre: 1 },
+  })
+
+  const themeCuisine = await prisma.themeAtelierRef.upsert({
+    where: { categorieId_nom: { categorieId: catBienEtre.id, nom: 'Cuisine' } },
+    update: {},
+    create: { nom: 'Cuisine', categorieId: catBienEtre.id, ordre: 1 },
+  })
+
+  await prisma.prestataire.upsert({
+    where: { nom: 'Association Cuisine Solidaire' },
+    update: {},
+    create: { nom: 'Association Cuisine Solidaire' },
+  })
+
+  // ── Action collective (atelier) ────────────────────────────
 
   const atelier1 = await prisma.actionCollective.upsert({
     where: { id: 1 },
     update: {},
     create: {
-      themeId: themeInfo?.id ?? 1,
+      themeId: themeInfo.id,
       lieu: "L'Escale",
       date: new Date('2024-02-20'),
       notes: 'Initiation à la bureautique',
@@ -389,7 +412,7 @@ async function main() {
     where: { id: 2 },
     update: {},
     create: {
-      themeId: themeCuisine?.id ?? 1,
+      themeId: themeCuisine.id,
       prestataireId: prestataire?.id ?? undefined,
       lieu: "L'Escale",
       date: new Date('2024-03-05'),
