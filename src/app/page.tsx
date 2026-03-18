@@ -1,65 +1,157 @@
-import Image from "next/image";
+import { redirect } from 'next/navigation'
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { parseISO, dateAujourdhui, estFutur } from '@/lib/dates'
+import { BreadcrumbVues } from '@/components/tableau-journalier/breadcrumb-vues'
+import { NavigationDate } from '@/components/tableau-journalier/navigation-date'
+import { TableauVisites } from '@/components/tableau-journalier/tableau-visites'
+import { FormulaireVisite } from '@/components/tableau-journalier/formulaire-visite'
 
-export default function Home() {
+export default async function TableauJournalierPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>
+}) {
+  const session = await auth()
+  if (!session) redirect('/login')
+
+  const params = await searchParams
+  const dateISO =
+    params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date)
+      ? params.date
+      : dateAujourdhui()
+
+  if (estFutur(dateISO)) redirect('/')
+
+  const annee = parseInt(dateISO.slice(0, 4))
+  const mois  = parseInt(dateISO.slice(5, 7))
+
+  const debutMois       = new Date(`${annee}-${String(mois).padStart(2, '0')}-01T00:00:00.000Z`)
+  const debutMoisSuivant = mois === 12
+    ? new Date(`${annee + 1}-01-01T00:00:00.000Z`)
+    : new Date(`${annee}-${String(mois + 1).padStart(2, '0')}-01T00:00:00.000Z`)
+  const debutAnnee      = new Date(`${annee}-01-01T00:00:00.000Z`)
+  const debutAnneeSuivante = new Date(`${annee + 1}-01-01T00:00:00.000Z`)
+
+  const [visitesRaw, nbVisitesMois, nbVisitesAnnee, countsPartenairesRaw] = await Promise.all([
+    prisma.visit.findMany({
+      where: { date: parseISO(dateISO), deletedAt: null },
+      include: {
+        person:      { select: { id: true, nom: true, prenom: true, genre: true, estInscrit: true, _count: { select: { visites: { where: { deletedAt: null } } } } } },
+        saisiePar:   { select: { prenom: true, nom: true } },
+        modifiePar:  { select: { prenom: true, nom: true } },
+        demarches: {
+          include: {
+            actionCollective: { select: { themeId: true, themeRef: { select: { nom: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' }, // trié ensuite en JS
+    }),
+    prisma.visit.count({
+      where: { deletedAt: null, date: { gte: debutMois, lt: debutMoisSuivant } },
+    }),
+    prisma.visit.count({
+      where: { deletedAt: null, date: { gte: debutAnnee, lt: debutAnneeSuivante } },
+    }),
+    prisma.$queryRaw<{ partenaire: string; count: bigint }[]>`
+      SELECT unnest("partenaires") AS partenaire, COUNT(*) AS count
+      FROM "Visit"
+      WHERE date = ${parseISO(dateISO)} AND "deletedAt" IS NULL
+      GROUP BY partenaire
+      ORDER BY partenaire
+    `,
+  ])
+
+  const countsPartenaires = countsPartenairesRaw.map((r) => ({
+    partenaire: r.partenaire,
+    count:      Number(r.count),
+  }))
+
+  // Badges accompagnements par personne
+  const personIds = [...new Set(visitesRaw.map((v) => v.personId))]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const accompagnementsPersonnes = personIds.length > 0 ? await (prisma.accompagnement.findMany as any)({
+    where:  { personId: { in: personIds }, deletedAt: null },
+    select: { personId: true, suiviASID: { select: { id: true } }, suiviEI: { select: { id: true } } },
+  }) as { personId: number; suiviASID: { id: number } | null; suiviEI: { id: number } | null }[] : []
+
+  const badgesParPersonId: Record<number, { fse: boolean; asid: boolean }> = {}
+  for (const a of accompagnementsPersonnes) {
+    const prev = badgesParPersonId[a.personId] ?? { fse: false, asid: false }
+    badgesParPersonId[a.personId] = {
+      fse:  prev.fse  || a.suiviEI === null || a.suiviEI === undefined,
+      asid: prev.asid || !!a.suiviASID,
+    }
+  }
+
+  const visites = visitesRaw.sort((a, b) => {
+    const nomA = (a.person.nom).toUpperCase()
+    const nomB = (b.person.nom).toUpperCase()
+    const cmp = nomA.localeCompare(nomB, 'fr')
+    if (cmp !== 0) return cmp
+    return (a.person.prenom).toUpperCase().localeCompare((b.person.prenom).toUpperCase(), 'fr')
+  })
+
+  const labelMois = new Date(dateISO + 'T00:00:00.000Z').toLocaleDateString('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="container mx-auto px-4 py-6">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <BreadcrumbVues
+            vue="journaliere"
+            annee={annee}
+            moisISO={dateISO.slice(0, 7)}
+            dateISO={dateISO}
+          />
+          <h1 className="mt-1 text-2xl font-bold text-blue-600">Tableau d'Accueil Journalier</h1>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+        <NavigationDate dateISO={dateISO} />
+      </div>
+
+      {/* Indicateurs */}
+      <div className="mb-4 flex flex-wrap gap-6 text-sm text-muted-foreground">
+        <span>
+          <strong className="text-foreground">{nbVisitesMois}</strong>{' '}
+          visite{nbVisitesMois > 1 ? 's' : ''} en{' '}
+          <span className="capitalize">{labelMois}</span>
+        </span>
+        <span>
+          <strong className="text-foreground">{nbVisitesAnnee}</strong>{' '}
+          visite{nbVisitesAnnee > 1 ? 's' : ''} en {annee}
+        </span>
+        {countsPartenaires.length > 0 && (
+          <span className="flex items-center gap-2">
+            <span className="text-muted-foreground">Partenaires :</span>
+            {countsPartenaires.map(({ partenaire, count }) => (
+              <span key={partenaire} className="inline-flex items-center gap-1">
+                <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 border border-violet-200">
+                  {partenaire}
+                </span>
+                <strong className="text-foreground text-xs">{count}</strong>
+              </span>
+            ))}
+          </span>
+        )}
+      </div>
+
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {visites.length} visite{visites.length > 1 ? 's' : ''} ce jour
+        </p>
+        <FormulaireVisite dateISO={dateISO} mode="creation" />
+      </div>
+
+      <TableauVisites
+        visites={visites}
+        dateISO={dateISO}
+        badgesParPersonId={badgesParPersonId}
+      />
+    </main>
+  )
 }

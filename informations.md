@@ -44,7 +44,32 @@ Le tableau a les colonnes suivantes:
 - Nom
 - Prénom
 - Visites
-- Motif(s) (Objet(s) de la visite de l'Escale) (valeurs: [MSA/CAF, Santé, PASS, Logement, Mobilité, CV/LM, Emploi,  Recherches/Admin, Inscription réinscription France Travail, Création compte France Travail, Accompagnement numérique, Internet, Info(s)/Conseil(s), Autres: Lien social, Ateliers, Cours d'informatique,ASID])
+- Motif(s) (Objet(s) de la visite de l'Escale) (valeurs: [
+[]   - CAF/MSA
+[x]   - Santé 
+[]    - PASS
+[x]   - Logement
+[]    - Mobilité => carte solidaire
+[]    - Emploi
+[]        - Recherche
+[]        - CV/LM
+[]        - Administratif
+[]        - Inscription à France Travail
+[]        - Orienté par France Travail
+[]    - Accompagnement au numérique
+[]    - Internet
+[]    - Info/Conseil
+[]    - Autres (avec input)
+[]    - Lien social
+[]    - Atelier (input nom de l'atelier de l'atelier du jour)
+[]    - Cours d'informatique
+[]    - ASID
+
+    genre de la fiche non modifiable
+    visite 2 pour durant
+    audit trail à la demande (non visible dans le tableau)
+
+    MSA/CAF, Santé, PASS, Logement, Mobilité, CV/LM, Emploi,  Recherches/Admin, Inscription réinscription France Travail, Création compte France Travail, Accompagnement numérique, Internet, Info(s)/Conseil(s), Autres: Lien social, Ateliers, Cours d'informatique,ASID])
 - Orienté(e) par France Travail (valeurs: [oui, non])
 
 France Travail:
@@ -73,40 +98,42 @@ France Travail:
 
 ENUM CPAM/ARS
 CPAM/ARS (actuellement l'escale utilise le tableau d'accueil jour après jour)
-    - Ouverture et maintien des droits
-        - Dossier CSS
-        - Carte Vitale
-        - Affiliation:
-            - droits santé
-            - mutuelle
-        - Invalidité
-        - Rattachement enfants
-        - AME
-    - Accès au numérique
-        - Création compte AMELI/MSA
-        - Consultation et démarches sur les espaces personnels AMELI/MSA
-    - démarches administratives
-        - échange avec CPAM/MSA
-        - impression et/ou envoi de documents
-        - information sur les droits
-    - accès aux soins et suivi du parcours santé
-        - démarches d'accès aux soins
-        - dossier MDPH
-        - suivi de parcours de soin
-        - bilan de santé (compter dans "accès aux soins et suivi du parcours santé" et dans "orientations partenaires/autres partenaires" parce que c'est l'escale qui accompagne)
-    - orientations partenaires
-        - CPAM/MSA
-            - CRAMIF
-            - santé au travail
-        - MDPH
-        - orientation et permanences PASS
-        - autres partenaires (sous domaine interne à l'escale)
-            - addictologie
-            - maison des femmes
-            - GEM/CMPA
-            - médecins et centres de soins
-            - centre de dépistage
-    - santé mentale et soutien psychologique
+Santé (niveau 0)
+    - Ouverture et maintien des droits (niveau 1)
+        - Dossier CSS (niveau 2)
+        - Carte Vitale (niveau 2)
+        - Affiliation: (niveau 2)
+            - droits santé (niveau 3)
+            - mutuelle (niveau 3)
+        - Invalidité (niveau 2)
+        - Rattachement enfants (niveau 2)
+        - AME (niveau 2)
+    - Accès au numérique (niveau 1)
+        - Création compte AMELI/MSA (niveau 2)
+        - Consultation et démarches sur les espaces personnels AMELI/MSA (niveau 2)
+    - Démarches administratives (niveau 1)
+        - échange avec CPAM/MSA (niveau 2)
+        - impression et/ou envoi de documents (niveau 2)
+        - information sur les droits (niveau 2)
+    - Accès aux soins et suivi du parcours santé (niveau 1)
+        - démarches d'accès aux soins (niveau 2)
+        - dossier MDPH (niveau 2)
+        - suivi de parcours de soin (niveau 2)
+        - bilan de santé (compter dans "accès aux soins et suivi du parcours santé" et dans "orientations partenaires/autres partenaires" parce que c'est l'escale qui accompagne)  (niveau 2)
+    - orientations partenaires (niveau 1)
+        - CPAM/MSA (niveau 2)
+            - CRAMIF (niveau 3)
+            - santé au travail (niveau 3)
+        - MDPH (niveau 2)
+        - orientation et permanences PASS (niveau 2)
+        - autres partenaires (sous domaine interne à l'escale) (niveau 2)
+            - addictologie (niveau 3)
+            - maison des femmes (niveau 3)
+            - GEM/CMPA (niveau 3)
+            - médecins et centres de soins (niveau 3)
+            - centre de dépistage (niveau 3)
+    - santé mentale (niveau 1)
+    - soutien psychologique (niveau 1)
 
 ARS nombre de personne reçu en entretien individuel
     - pour une personne :
@@ -155,12 +182,70 @@ Actions collectives
             - le nombre total de participants par atelier
         - 
 
- FSE cf email
-    - homme/femme
-    - nouvelle entrée dans le dispositif FSE
-    - ASID
-    - type de ressources:
-        - 
+ FSE
+    Suivi
+        - Nom
+        - Prénom
+        - Démarches
+            - Ouverture et/ou maintien de droits CAF/MSA
+            - Santé
+            - CSS
+            - Bilan de santé
+            - Mobilité
+            - Recherche d'emploi
+            - CV
+            - Logement
+            - Ateliers
+            - Accompagnement au numérique
+            - PASS Numérique
+            - Parentalité
+    
+    Données
+        - Nom
+        - Prénom
+        - Homme/Femme
+        - ASID
+            - Date d'entrée
+            - Date de sortie
+        - RSA
+            - Date d'entrée
+            - Date de sortie
+        - Ressources
+            - RSA
+            - ASS
+            - ARE
+            - AAH 
+            - Salaire du conjoint
+            - Invalidité
+            - Sans ressources   
+        - Accompagnement FSE
+            - Date d'entrée
+            - Date de sortie
+        - Occupe un emploi avant le début de l'accompagnement FSE
+            - CDD < 6 mois
+            - CDD > 6 mois
+            - CDI
+            - IAE
+            - Indépendant
+        - Sortie de l'accompagnement FSE
+            - CDD < 6 mois
+            - CDD > 6 mois
+            - CDI
+            - IAE
+            - Indépendant
+            - Maintien en emploi
+            - Recherche d'emploi
+            - Inactif
+            - Formation
+                - Intitulé de la formation
+                - Organisme de formation
+                - Ville
+                - Durée de la formation
+            - Création d'entreprise
+            - Information contrat hors délai
+        - Observations
+            
+          
 
 
     il manque le nombre de personnes en: 
@@ -228,3 +313,27 @@ ASID (suivi)
                 - maison 1000 bulles
                 - PMI
                 - mission locale
+
+
+
+
+
+[]   - CAF/MSA
+   - Santé 
+[]    - PASS
+[x]   - Logement
+[]    - Mobilité => carte solidaire
+[]    - Emploi
+[]        - Recherche
+[]        - CV/LM
+[]        - Administratif
+[]        - Inscription à France Travail
+[]        - Orienté par France Travail
+[]    - Accompagnement au numérique
+[]    - Internet
+[]    - Info/Conseil
+[]    - Autres (avec input)
+[]    - Lien social
+[]    - Atelier (input nom de l'atelier de l'atelier du jour)
+[]    - Cours d'informatique
+[]    - ASID

@@ -1,0 +1,137 @@
+import Link from 'next/link'
+import { redirect, notFound } from 'next/navigation'
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
+import { Button } from '@/components/ui/button'
+import { peutAcceder } from '@/lib/permissions'
+import { SectionParticipants } from '@/components/ateliers/section-participants'
+import { TooltipAudit } from '@/components/ui/tooltip-audit'
+
+export default async function DetailAtelierPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const session = await auth()
+  if (!session) redirect('/login')
+  if (!peutAcceder(session, 'ateliers')) redirect('/')
+
+  const { id: idStr } = await params
+  const id = Number(idStr)
+  if (isNaN(id)) notFound()
+
+  const atelier = await prisma.actionCollective.findFirst({
+    where: { id, deletedAt: null },
+    include: {
+      saisiePar:  { select: { prenom: true, nom: true } },
+      modifiePar: { select: { prenom: true, nom: true } },
+      themeRef: { include: { categorie: true } },
+      prestataire: true,
+      participants: {
+        where: { deletedAt: null },
+        include: {
+          person: { select: { id: true, nom: true, prenom: true } },
+        },
+        orderBy: [{ person: { nom: 'asc' } }, { person: { prenom: 'asc' } }],
+      },
+    },
+  })
+
+  if (!atelier) notFound()
+
+  const peutModifier = peutAcceder(session, 'ateliers', 'creer_modifier')
+
+  return (
+    <main className="container mx-auto max-w-2xl px-4 py-6">
+      {/* En-tête */}
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-blue-700">
+              {atelier.themeRef.nom}
+            </h1>
+            <TooltipAudit
+              saisiePar={atelier.saisiePar}
+              modifiePar={atelier.modifiePar}
+              createdAt={atelier.createdAt}
+              updatedAt={atelier.updatedAt}
+            />
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {atelier.themeRef.categorie.nom}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {formaterDateCourte(atelier.date)}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {peutModifier && (
+            <Link href={`/ateliers/${id}/modifier`}>
+              <Button variant="outline">Modifier</Button>
+            </Link>
+          )}
+          <Link href="/ateliers">
+            <Button variant="ghost">← Retour</Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Informations */}
+      <div className="mb-6 space-y-1 text-sm">
+        {atelier.lieu && (
+          <div className="flex gap-2">
+            <span className="w-32 shrink-0 text-muted-foreground">Lieu</span>
+            <span>{atelier.lieu}</span>
+          </div>
+        )}
+        {atelier.prestataire && (
+          <div className="flex gap-2">
+            <span className="w-32 shrink-0 text-muted-foreground">Prestataire</span>
+            <span>{atelier.prestataire.nom}</span>
+          </div>
+        )}
+        {atelier.themeAutre && (
+          <div className="flex gap-2">
+            <span className="w-32 shrink-0 text-muted-foreground">Titre</span>
+            <span className="font-medium">{atelier.themeAutre}</span>
+          </div>
+        )}
+        {atelier.notes && (
+          <div className="flex gap-2">
+            <span className="w-32 shrink-0 text-muted-foreground">Notes</span>
+            <span className="whitespace-pre-wrap">{atelier.notes}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Participants */}
+      <h2 className="mb-3 border-b pb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Participants ({atelier.participants.length})
+      </h2>
+      {peutModifier ? (
+        <SectionParticipants
+          atelierId={id}
+          participants={atelier.participants.map((p) => ({
+            id:       p.id,
+            personId: p.personId,
+            person:   p.person,
+          }))}
+        />
+      ) : (
+        /* DIRECTION : lecture seule */
+        atelier.participants.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun participant enregistré.</p>
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {atelier.participants.map((p) => (
+              <li key={p.id} className="px-3 py-2 text-sm font-medium">
+                {p.person.nom.toUpperCase()} {capitaliserPrenom(p.person.prenom)}
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+    </main>
+  )
+}

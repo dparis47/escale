@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install --save-dev prettier prettier-plugin-tailwindcss)"
+      "Bash(npm install --save-dev prettier prettier-plugin-tailwindcss)",
+      "Bash(npm install prisma @prisma/client --save-dev)"
     ]
   }
 }
