@@ -38,6 +38,7 @@ export default async function TableauMensuelPage({
         saisiePar:  { select: { prenom: true, nom: true } },
         modifiePar: { select: { prenom: true, nom: true } },
         demarches:  true,
+        ateliers:   { where: { deletedAt: null }, include: { actionCollective: { select: { themeId: true, themeRef: { select: { nom: true } } } } } },
       },
       orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
     }),

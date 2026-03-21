@@ -212,6 +212,9 @@ model Visit {
   // Démarches créées en même temps que la visite (Demarches.visitId pointe ici)
   demarches Demarches?
 
+  // Ateliers (plusieurs possibles le même jour)
+  ateliers  VisiteAtelier[]
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -333,9 +336,7 @@ model Demarches {
   parentaliteAutreInput     String?
 
   // ATELIERS DE REDYNAMISATION
-  atelierParticipation Boolean           @default(false)
-  actionCollectiveId   Int?
-  actionCollective     ActionCollective? @relation(fields: [actionCollectiveId], references: [id])
+  atelierParticipation Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -630,11 +631,22 @@ model ActionCollective {
 
   participants ParticipationAtelier[]
   fichiers     FichierEmargement[]
-  demarches    Demarches[]
+  visites      VisiteAtelier[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+}
+
+model VisiteAtelier {
+  id                 Int              @id @default(autoincrement())
+  visitId            Int
+  visit              Visit            @relation(fields: [visitId], references: [id])
+  actionCollectiveId Int
+  actionCollective   ActionCollective @relation(fields: [actionCollectiveId], references: [id])
+  deletedAt          DateTime?
+
+  @@unique([visitId, actionCollectiveId])
 }
 
 model ParticipationAtelier {

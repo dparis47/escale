@@ -114,7 +114,8 @@ export default async function FicheAccompagnementPage({
     orderBy: { date: 'desc' },
     select: {
       id: true, date: true, orienteParFT: true, commentaire: true,
-      demarches: { select: { atelierParticipation: true, autresInput: true, actionCollective: { select: { themeRef: { select: { nom: true } }, themeAutre: true } } } },
+      demarches: { select: { atelierParticipation: true, autresInput: true } },
+      ateliers:  { where: { deletedAt: null }, select: { actionCollective: { select: { themeRef: { select: { nom: true } }, themeAutre: true } } } },
     },
   })
 
@@ -382,7 +383,7 @@ export default async function FicheAccompagnementPage({
                     <td className="px-3 py-2 text-xs text-muted-foreground">
                       {[
                         v.orienteParFT ? 'Orienté par France Travail' : null,
-                        v.demarches?.atelierParticipation ? `Atelier : ${v.demarches.actionCollective ? (v.demarches.actionCollective.themeAutre ?? v.demarches.actionCollective.themeRef.nom) : 'oui'}` : null,
+                        v.demarches?.atelierParticipation && v.ateliers.length > 0 ? `Atelier : ${v.ateliers.map((a) => a.actionCollective?.themeAutre ?? a.actionCollective?.themeRef.nom).filter(Boolean).join(', ')}` : (v.demarches?.atelierParticipation ? 'Atelier : oui' : null),
                         v.demarches?.autresInput ? `Autres : ${v.demarches.autresInput}` : null,
                       ].filter(Boolean).join(' · ') || '—'}
                     </td>

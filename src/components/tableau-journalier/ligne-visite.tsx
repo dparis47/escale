@@ -88,9 +88,11 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
             </span>
           )}
           {visite.demarches && (() => {
-            const nomThemeAtelier = visite.demarches.actionCollective?.themeRef?.nom
+            const nomsAteliers = (visite.ateliers ?? [])
+              .map((va) => va.actionCollective?.themeRef?.nom)
+              .filter((n): n is string => !!n)
             const themes = themesAvecFeuilles(fromPrisma(visite.demarches as unknown as Record<string, unknown>))
-              .filter(({ id }) => !(id === 'ateliers' && nomThemeAtelier))
+              .filter(({ id }) => !(id === 'ateliers' && nomsAteliers.length > 0))
             return (
               <>
                 {themes.map(({ id, label, feuilles }) => (
@@ -105,13 +107,15 @@ export function LigneVisite({ visite, dateISO, badges }: Props) {
                     </div>
                   </div>
                 ))}
-                {nomThemeAtelier && (
+                {nomsAteliers.length > 0 && (
                   <div>
                     <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
                       ATELIERS DE REDYNAMISATION
                     </span>
-                    <div className="mt-0.5 pl-1">
-                      <span className="text-xs text-muted-foreground">Atelier : {nomThemeAtelier}</span>
+                    <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 pl-1">
+                      {nomsAteliers.map((nom) => (
+                        <span key={nom} className="text-xs text-muted-foreground">· {nom}</span>
+                      ))}
                     </div>
                   </div>
                 )}

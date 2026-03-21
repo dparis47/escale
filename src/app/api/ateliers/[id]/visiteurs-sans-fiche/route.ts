@@ -16,16 +16,17 @@ export async function GET(_request: Request, { params }: Params) {
   const id = Number(idStr)
   if (isNaN(id)) return NextResponse.json({ erreur: 'ID invalide' }, { status: 400 })
 
-  // Visiteurs sans fiche (estInscrit=false) ayant participé à cet atelier
+  // Visiteurs sans fiche (estInscrit=false) ayant participé à cet atelier,
+  // en excluant ceux qui ont déjà une ParticipationAtelier active (évite les doublons)
   // DISTINCT sur personId pour dédupliquer
   const rows = await prisma.visit.findMany({
     where: {
       deletedAt: null,
-      person: { estInscrit: false },
-      demarches: {
-        atelierParticipation: true,
-        actionCollectiveId: id,
+      person: {
+        estInscrit: false,
+        participationsAteliers: { none: { actionCollectiveId: id, deletedAt: null } },
       },
+      ateliers: { some: { actionCollectiveId: id, deletedAt: null } },
     },
     select: {
       person: { select: { nom: true, prenom: true } },

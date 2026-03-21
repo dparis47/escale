@@ -105,8 +105,7 @@ export type DemarcheChamps = {
 
   // ATELIERS DE REDYNAMISATION
   atelierParticipation:      boolean
-  actionCollectiveId:        number | null
-  themeAtelierId:            number | null
+  themeAtelierIds:           number[]
 }
 
 // ─── Types des nœuds ─────────────────────────────────────────────────────────
@@ -241,8 +240,7 @@ export const DEMARCHE_VIDE: DemarcheChamps = {
   parentaliteMissionLocale:   false,
   parentaliteAutreInput:      null,
   atelierParticipation:       false,
-  actionCollectiveId:         null,
-  themeAtelierId:             null,
+  themeAtelierIds:            [],
 }
 
 // ─── Arbre ────────────────────────────────────────────────────────────────────
@@ -716,7 +714,6 @@ export function fromPrisma(obj: Record<string, unknown>): DemarcheChamps {
     parentaliteMissionLocale:   bool('parentaliteMissionLocale'),
     parentaliteAutreInput:      str('parentaliteAutreInput'),
     atelierParticipation:       bool('atelierParticipation'),
-    actionCollectiveId:         num('actionCollectiveId'),
-    themeAtelierId:             (obj.actionCollective as Record<string, unknown> | null)?.themeId as number | null ?? null,
+    themeAtelierIds:            [],
   }
 }

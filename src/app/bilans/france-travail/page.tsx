@@ -246,13 +246,10 @@ export default async function BilanFranceTravailPage({
         COUNT(v.id)::bigint AS presences
       FROM "ActionCollective" ac
       JOIN "ThemeAtelierRef" t ON t.id = ac."themeId"
+      LEFT JOIN "VisiteAtelier" va ON va."actionCollectiveId" = ac.id AND va."deletedAt" IS NULL
       LEFT JOIN "Visit" v
-        ON  v.date        = ac.date
+        ON  v.id = va."visitId"
         AND v."deletedAt" IS NULL
-        AND EXISTS (
-          SELECT 1 FROM "Demarches" d
-          WHERE d."visitId" = v.id AND d."atelierParticipation" = true AND d."actionCollectiveId" = ac.id
-        )
       WHERE ac."deletedAt" IS NULL
         AND ac.date >= ${debut}
         AND ac.date <= ${fin}
@@ -266,14 +263,11 @@ export default async function BilanFranceTravailPage({
           SELECT t.nom AS "themeNom", COUNT(DISTINCT v."personId")::bigint AS personnes
           FROM "ActionCollective" ac
           JOIN "ThemeAtelierRef" t ON t.id = ac."themeId"
+          JOIN "VisiteAtelier" va ON va."actionCollectiveId" = ac.id AND va."deletedAt" IS NULL
           JOIN "Visit" v
-            ON  v.date        = ac.date
+            ON  v.id          = va."visitId"
             AND v."deletedAt" IS NULL
             AND v."personId" IN (${Prisma.join(emploiPersonIds)})
-            AND EXISTS (
-              SELECT 1 FROM "Demarches" d
-              WHERE d."visitId" = v.id AND d."atelierParticipation" = true AND d."actionCollectiveId" = ac.id
-            )
           WHERE ac."deletedAt" IS NULL
             AND ac.date >= ${debut}
             AND ac.date <= ${fin}

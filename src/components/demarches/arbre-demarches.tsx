@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -56,15 +57,29 @@ function ThemeAteliersDynamiques({
       .finally(() => setChargement(false))
   }, [])
 
-  const valeur = champs.themeAtelierId?.toString() ?? ''
+  const ids = champs.themeAtelierIds ?? []
+  const tousThemes = categories.flatMap((c) => c.themes)
 
-  function choisir(val: string) {
-    if (val === '__aucun__') {
-      onChange({ ...champs, themeAtelierId: null, actionCollectiveId: null, atelierParticipation: false })
-    } else {
-      onChange({ ...champs, themeAtelierId: Number(val), actionCollectiveId: null, atelierParticipation: true })
-    }
+  function ajouter(val: string) {
+    if (!val || val === '__vide__') return
+    const id = Number(val)
+    if (ids.includes(id)) return
+    const nouveaux = [...ids, id]
+    onChange({ ...champs, themeAtelierIds: nouveaux, atelierParticipation: true })
   }
+
+  function retirer(id: number) {
+    const nouveaux = ids.filter((i) => i !== id)
+    onChange({ ...champs, themeAtelierIds: nouveaux, atelierParticipation: nouveaux.length > 0 })
+  }
+
+  const selectionnes = ids
+    .map((id) => tousThemes.find((t) => t.id === id))
+    .filter((t): t is { id: number; nom: string } => t !== undefined)
+
+  const disponibles = categories
+    .map((cat) => ({ ...cat, themes: cat.themes.filter((t) => !ids.includes(t.id)) }))
+    .filter((cat) => cat.themes.length > 0)
 
   return (
     <div className="space-y-2">
@@ -72,29 +87,56 @@ function ThemeAteliersDynamiques({
         ATELIERS DE REDYNAMISATION
       </p>
 
-      <Select
-        value={valeur || '__aucun__'}
-        onValueChange={choisir}
-        disabled={disabled || chargement}
-      >
-        <SelectTrigger className="max-w-md">
-          <SelectValue placeholder={chargement ? 'Chargement…' : 'Aucun atelier'} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__aucun__">Aucun atelier</SelectItem>
-          {categories.map((cat, ci) => (
-            <SelectGroup key={cat.id}>
-              {ci > 0 && <div className="mx-1 my-1.5 h-px bg-border" />}
-              <SelectLabel className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {cat.nom}
-              </SelectLabel>
-              {cat.themes.map((t) => (
-                <SelectItem key={t.id} value={String(t.id)} className="pl-5">{t.nom}</SelectItem>
-              ))}
-            </SelectGroup>
+      {/* Badges des ateliers sélectionnés */}
+      {selectionnes.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectionnes.map((t) => (
+            <span
+              key={t.id}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+            >
+              {t.nom}
+              {!disabled && (
+                <button
+                  type="button"
+                  onClick={() => retirer(t.id)}
+                  className="ml-0.5 rounded-full hover:text-destructive"
+                  aria-label={`Retirer ${t.nom}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </span>
           ))}
-        </SelectContent>
-      </Select>
+        </div>
+      )}
+
+      {/* Select pour ajouter un atelier */}
+      {!disabled && (
+        <Select value="__vide__" onValueChange={ajouter} disabled={chargement}>
+          <SelectTrigger className="max-w-md">
+            <SelectValue placeholder={chargement ? 'Chargement…' : '+ Ajouter un atelier…'} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__vide__" className="text-muted-foreground">+ Ajouter un atelier…</SelectItem>
+            {disponibles.map((cat, ci) => (
+              <SelectGroup key={cat.id}>
+                {ci > 0 && <div className="mx-1 my-1.5 h-px bg-border" />}
+                <SelectLabel className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {cat.nom}
+                </SelectLabel>
+                {cat.themes.map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)} className="pl-5">{t.nom}</SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {disabled && selectionnes.length === 0 && (
+        <p className="text-sm text-muted-foreground">Aucun atelier</p>
+      )}
     </div>
   )
 }

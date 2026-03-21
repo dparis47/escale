@@ -53,14 +53,14 @@ export function TableauAteliers({ categories, estTS, peutGerer, participantFilte
               id: number
               nom: string
               prenom: string
-              accompagnements: Array<{ id: number; suiviASID: { id: number } | null }>
+              accompagnements: Array<{ id: number; suiviASID: { id: number } | null; suiviEI: { id: number } | null }>
             }
           }>
         }
         const participants: ParticipantInfo[] = data.participants.map((p) => {
           const accos   = p.person.accompagnements
           const hasASID = accos.some((a) => a.suiviASID !== null)
-          const hasFSE  = accos.some((a) => a.suiviASID === null)
+          const hasFSE  = accos.some((a) => a.suiviASID === null && a.suiviEI === null)
           return {
             personId: p.person.id,
             nom:      p.person.nom,

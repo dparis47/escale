@@ -17,38 +17,35 @@ async function nettoyerSeanceOrpheline(actionCollectiveId: number) {
         select: {
           participants: { where: { deletedAt: null } },
           fichiers: true,
-          demarches: { where: { visit: { deletedAt: null } } },
+          visites: { where: { deletedAt: null, visit: { deletedAt: null } } },
         },
       },
     },
   })
   if (!seance) return
 
-  // Ne supprimer que les séances auto-générées (sans enrichissement manuel)
   const estAutoGeneree = !seance.notes && !seance.lieu && !seance.prestataireId && !seance.themeAutre
-  const estVide = seance._count.participants === 0 && seance._count.demarches === 0
+  const estVide = seance._count.participants === 0 && seance._count.visites === 0
 
   if (estAutoGeneree && estVide) {
-    // Détacher les démarches orphelines (visites soft-deleted) de cette séance
-    await prisma.demarches.updateMany({
-      where: { actionCollectiveId },
-      data: { actionCollectiveId: null, atelierParticipation: false },
-    })
+    // Supprimer physiquement les VisiteAtelier orphelins (visites soft-deleted)
+    await prisma.visiteAtelier.deleteMany({ where: { actionCollectiveId } })
     // Supprimer physiquement les participations associées
-    await prisma.participationAtelier.deleteMany({
-      where: { actionCollectiveId },
-    })
+    await prisma.participationAtelier.deleteMany({ where: { actionCollectiveId } })
     // Supprimer physiquement la séance
-    await prisma.actionCollective.delete({
-      where: { id: actionCollectiveId },
-    })
+    await prisma.actionCollective.delete({ where: { id: actionCollectiveId } })
   }
 }
 
 async function getVisite(id: number) {
   return prisma.visit.findFirst({
     where: { id, deletedAt: null },
-    include: { demarches: { select: { actionCollectiveId: true } } },
+    include: {
+      ateliers: {
+        where:  { deletedAt: null },
+        select: { actionCollectiveId: true },
+      },
+    },
   })
 }
 
@@ -133,34 +130,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   // Upsert Demarches
   if (demarchesData !== undefined) {
-    // Résoudre themeAtelierId → actionCollectiveId (trouver ou créer la séance du jour)
-    let actionCollectiveIdResolu = demarchesData.actionCollectiveId ?? null
-    if (demarchesData.themeAtelierId) {
-      const dateSeance = dateObj ?? visite.date
+    // Résoudre themeAtelierIds → actionCollectiveIds (trouver ou créer les séances du jour)
+    const themeAtelierIds = demarchesData.themeAtelierIds ?? []
+    const nouveauxAtelIds: number[] = []
+    const dateSeance = dateObj ?? visite.date
+    for (const themeId of themeAtelierIds) {
       let seance = await prisma.actionCollective.findFirst({
-        where: { themeId: demarchesData.themeAtelierId, date: dateSeance, deletedAt: null },
+        where: { themeId, date: dateSeance, deletedAt: null },
         select: { id: true },
       })
       if (!seance) {
         seance = await prisma.actionCollective.create({
-          data: { themeId: demarchesData.themeAtelierId, date: dateSeance },
+          data: { themeId, date: dateSeance },
         })
       }
-      actionCollectiveIdResolu = seance.id
-    }
-    const { themeAtelierId: _t, ...demarchesSansTheme } = demarchesData
-    const demarchesPersist = {
-      ...demarchesSansTheme,
-      actionCollectiveId: actionCollectiveIdResolu,
-      atelierParticipation: !!actionCollectiveIdResolu || !!demarchesData.atelierParticipation,
+      nouveauxAtelIds.push(seance.id)
     }
 
-    // Récupérer l'ancien actionCollectiveId avant mise à jour
-    const ancienDem = await prisma.demarches.findUnique({
-      where: { visitId: id },
-      select: { actionCollectiveId: true },
-    })
-    const ancienAtelId = ancienDem?.actionCollectiveId ?? null
+    const { themeAtelierIds: _t, ...demarchesSansTheme } = demarchesData
+    const demarchesPersist = {
+      ...demarchesSansTheme,
+      atelierParticipation: nouveauxAtelIds.length > 0 || !!demarchesData.atelierParticipation,
+    }
 
     await prisma.demarches.upsert({
       where:  { visitId: id },
@@ -168,39 +159,36 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       update: { ...demarchesPersist },
     })
 
-    const nouveauAtelId = actionCollectiveIdResolu
+    // Diff des ateliers : anciens vs nouveaux
+    const anciensAtelIds = visite.ateliers.map((a) => a.actionCollectiveId)
+    const aRetirer = anciensAtelIds.filter((aid) => !nouveauxAtelIds.includes(aid))
+    const aAjouter = nouveauxAtelIds.filter((aid) => !anciensAtelIds.includes(aid))
 
-    // Gestion des participants à l'atelier
-    if (ancienAtelId !== nouveauAtelId) {
-      // Retirer de l'ancien atelier
-      if (ancienAtelId) {
-        await prisma.participationAtelier.updateMany({
-          where: {
-            actionCollectiveId: ancienAtelId,
-            personId: visite.personId,
-            deletedAt: null,
-          },
-          data: { deletedAt: new Date() },
-        })
-        // Supprimer la séance auto-générée si elle est vide
-        await nettoyerSeanceOrpheline(ancienAtelId)
-      }
-      // Ajouter au nouvel atelier
-      if (nouveauAtelId) {
-        await prisma.participationAtelier.upsert({
-          where: {
-            actionCollectiveId_personId: {
-              actionCollectiveId: nouveauAtelId,
-              personId: visite.personId,
-            },
-          },
-          create: {
-            actionCollectiveId: nouveauAtelId,
-            personId: visite.personId,
-          },
-          update: { deletedAt: null },
-        })
-      }
+    // Retirer des ateliers supprimés
+    for (const atelId of aRetirer) {
+      await prisma.visiteAtelier.updateMany({
+        where: { visitId: id, actionCollectiveId: atelId },
+        data:  { deletedAt: new Date() },
+      })
+      await prisma.participationAtelier.updateMany({
+        where: { actionCollectiveId: atelId, personId: visite.personId, deletedAt: null },
+        data:  { deletedAt: new Date() },
+      })
+      await nettoyerSeanceOrpheline(atelId)
+    }
+
+    // Ajouter aux nouveaux ateliers
+    for (const atelId of aAjouter) {
+      await prisma.visiteAtelier.upsert({
+        where:  { visitId_actionCollectiveId: { visitId: id, actionCollectiveId: atelId } },
+        create: { visitId: id, actionCollectiveId: atelId },
+        update: { deletedAt: null },
+      })
+      await prisma.participationAtelier.upsert({
+        where:  { actionCollectiveId_personId: { actionCollectiveId: atelId, personId: visite.personId } },
+        create: { actionCollectiveId: atelId, personId: visite.personId },
+        update: { deletedAt: null },
+      })
     }
   }
 
@@ -225,16 +213,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const visite = await getVisite(id)
   if (!visite) return NextResponse.json({ erreur: 'Visite introuvable' }, { status: 404 })
 
-  // Soft delete du participant atelier si la visite en avait un
-  const atelId = visite.demarches?.actionCollectiveId
-  if (atelId) {
+  // Soft delete des participations ateliers de cette visite
+  const atelIds = visite.ateliers.map((a) => a.actionCollectiveId)
+  for (const atelId of atelIds) {
+    await prisma.visiteAtelier.updateMany({
+      where: { visitId: id, actionCollectiveId: atelId },
+      data:  { deletedAt: new Date() },
+    })
     await prisma.participationAtelier.updateMany({
-      where: {
-        actionCollectiveId: atelId,
-        personId: visite.personId,
-        deletedAt: null,
-      },
-      data: { deletedAt: new Date() },
+      where: { actionCollectiveId: atelId, personId: visite.personId, deletedAt: null },
+      data:  { deletedAt: new Date() },
     })
   }
 
@@ -243,8 +231,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     data: { deletedAt: new Date(), modifieParId: Number(session.user.id) },
   })
 
-  // Supprimer la séance auto-générée si elle est vide
-  if (atelId) {
+  // Supprimer les séances auto-générées devenues vides
+  for (const atelId of atelIds) {
     await nettoyerSeanceOrpheline(atelId)
   }
 

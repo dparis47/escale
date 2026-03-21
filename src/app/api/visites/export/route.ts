@@ -63,7 +63,8 @@ export async function GET(req: Request) {
     },
     include: {
       person:    { select: { nom: true, prenom: true, genre: true } },
-      demarches: { include: { actionCollective: { select: { themeRef: { select: { nom: true } } } } } },
+      demarches: true,
+      ateliers:  { where: { deletedAt: null }, include: { actionCollective: { select: { themeRef: { select: { nom: true } } } } } },
     },
     orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
   })
@@ -108,13 +109,12 @@ export async function GET(req: Request) {
       } else if (col.type === 'texte') {
         row[col.header] = typeof val === 'string' ? val : ''
       } else if (col.type === 'tableau') {
-        row[col.header] = Array.isArray(val) ? (val as string[]).join(', ') : ''
+        row[col.header] = Array.isArray(val) ? (val as unknown[]).map(String).join(', ') : ''
       }
     }
 
-    // Nom du thème atelier (si lié à une ActionCollective)
-    const demarches = v.demarches as { actionCollective?: { themeRef?: { nom: string } } | null } | null
-    row['Thème atelier'] = demarches?.actionCollective?.themeRef?.nom ?? ''
+    // Noms des thèmes ateliers
+    row['Thème atelier'] = (v.ateliers ?? []).map((a) => a.actionCollective?.themeRef?.nom).filter(Boolean).join(', ')
 
     row['Commentaire'] = v.commentaire ?? ''
     return row

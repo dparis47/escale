@@ -50,7 +50,8 @@ export default async function FichePersonnePage({
         orderBy: { date: 'desc' },
         select:  {
           id: true, date: true, orienteParFT: true, commentaire: true, fse: true,
-          demarches: { include: { actionCollective: { select: { themeRef: { select: { nom: true } }, themeAutre: true } } } },
+          demarches: { select: { atelierParticipation: true, autresInput: true } },
+          ateliers:  { where: { deletedAt: null }, select: { actionCollective: { select: { themeRef: { select: { nom: true } }, themeAutre: true } } } },
         },
       },
       accompagnements: {
@@ -294,9 +295,11 @@ export default async function FichePersonnePage({
                         </span>
                       )}
                       {v.demarches && (() => {
-                        const nomThemeAtelier = v.demarches.actionCollective?.themeRef?.nom
+                        const nomsAteliers = (v.ateliers ?? [])
+                          .map((a) => a.actionCollective?.themeAutre ?? a.actionCollective?.themeRef?.nom)
+                          .filter((n): n is string => !!n)
                         const themes = themesAvecFeuilles(fromPrisma(v.demarches as unknown as Record<string, unknown>))
-                          .filter(({ id }) => !(id === 'ateliers' && nomThemeAtelier))
+                          .filter(({ id }) => !(id === 'ateliers' && nomsAteliers.length > 0))
                         return (
                           <>
                             {themes.map(({ id, label, feuilles }) => (
@@ -309,11 +312,13 @@ export default async function FichePersonnePage({
                                 </div>
                               </div>
                             ))}
-                            {nomThemeAtelier && (
+                            {nomsAteliers.length > 0 && (
                               <div>
                                 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">ATELIERS DE REDYNAMISATION</span>
-                                <div className="mt-0.5 pl-1">
-                                  <span className="text-xs text-muted-foreground">Atelier : {nomThemeAtelier}</span>
+                                <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 pl-1">
+                                  {nomsAteliers.map((nom) => (
+                                    <span key={nom} className="text-xs text-muted-foreground">· {nom}</span>
+                                  ))}
                                 </div>
                               </div>
                             )}

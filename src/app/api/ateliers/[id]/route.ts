@@ -32,7 +32,11 @@ export async function GET(_request: Request, { params }: Params) {
           id: true, nom: true, prenom: true,
           accompagnements: {
             where: { deletedAt: null, dateSortie: null },
-            select: { id: true, suiviASID: { select: { id: true } } },
+            select: {
+              id: true,
+              suiviASID: { select: { id: true } },
+              suiviEI:   { select: { id: true } },
+            },
           },
         } } },
         orderBy: [{ person: { nom: 'asc' } }, { person: { prenom: 'asc' } }],

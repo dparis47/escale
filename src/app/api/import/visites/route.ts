@@ -265,7 +265,7 @@ function parseLegacyFormat(
       autresInput:             autresFlag ? 'Autres' : null,
       isolementLienSocial:     boolVal(cols.has('LIEN_SOCIAL') ? row[cols.get('LIEN_SOCIAL')!] : ''),
       atelierParticipation:    estAtelier,
-      actionCollectiveId:      null,
+      themeAtelierIds:         [],
     }
 
     lignes.push({
@@ -474,7 +474,9 @@ export async function POST(request: Request) {
       }
 
       // 4. Créer Visit + Demarches
-      const visite = await prisma.visit.create({
+      const { actionCollectiveId: _ac, ...demarachesSansAC } = l.demarches as typeof l.demarches & { actionCollectiveId?: unknown }
+      void _ac
+      await prisma.visit.create({
         data: {
           date:        parseISO(l.date),
           personId,
@@ -483,11 +485,11 @@ export async function POST(request: Request) {
           saisieParId:  Number(session.user.id),
           demarches: {
             create: {
-              ...l.demarches,
+              ...demarachesSansAC,
               atelierParticipation: l.demarches.atelierParticipation || actionCollectiveId !== null,
-              actionCollectiveId,
             },
           },
+          ateliers: actionCollectiveId ? { create: [{ actionCollectiveId }] } : undefined,
         },
       })
 

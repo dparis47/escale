@@ -36,11 +36,12 @@ export async function POST(_request: Request, { params }: Params) {
     FROM "Visit" v
     JOIN "Person" p ON p.id = v."personId"
     JOIN "ActionCollective" ac ON ac.date = v.date
-    WHERE v."deletedAt"  IS NULL
-      AND v."personId"   IS NOT NULL
-      AND p."deletedAt"  IS NULL
-      AND ac.id          = ${id}
-      AND ac."deletedAt" IS NULL
+    WHERE v."deletedAt"   IS NULL
+      AND v."personId"    IS NOT NULL
+      AND p."deletedAt"   IS NULL
+      AND p."estInscrit"  = true
+      AND ac.id           = ${id}
+      AND ac."deletedAt"  IS NULL
       AND v.motifs::text[] @> ARRAY['ATELIERS']
     ORDER BY v."personId", p.nom, p.prenom
   `)

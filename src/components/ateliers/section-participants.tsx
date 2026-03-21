@@ -124,13 +124,6 @@ export function SectionParticipants({ atelierId, participants: init }: Props) {
   return (
     <div className="space-y-4">
 
-      {/* En-tête avec total */}
-      {total > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {total} participant{total > 1 ? 's' : ''} au total
-        </p>
-      )}
-
       {/* Liste unifiée */}
       {total === 0 ? (
         <p className="text-sm text-muted-foreground">Aucun participant enregistré.</p>

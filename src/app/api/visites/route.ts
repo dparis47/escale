@@ -23,7 +23,11 @@ export async function GET(request: Request) {
       person:     { select: { id: true, nom: true, prenom: true, genre: true, estInscrit: true } },
       saisiePar:  { select: { prenom: true, nom: true } },
       modifiePar: { select: { prenom: true, nom: true } },
-      demarches:  { include: { actionCollective: { select: { themeId: true, themeRef: { select: { nom: true } } } } } },
+      demarches:  true,
+      ateliers:   {
+        where:   { deletedAt: null },
+        include: { actionCollective: { select: { themeId: true, themeRef: { select: { nom: true } } } } },
+      },
     },
     orderBy: { createdAt: 'asc' },
   })
@@ -78,27 +82,29 @@ export async function POST(request: Request) {
       resolvedPersonId = person.id
     }
 
-    // Résoudre themeAtelierId → actionCollectiveId (trouver ou créer la séance du jour)
-    let actionCollectiveIdResolu = demarches?.actionCollectiveId ?? null
-    if (demarches?.themeAtelierId) {
+    // Résoudre themeAtelierIds → actionCollectiveIds (trouver ou créer les séances du jour)
+    const themeAtelierIds = demarches?.themeAtelierIds ?? []
+    const atelierIds: number[] = []
+    if (themeAtelierIds.length > 0) {
       const dateSeance = parseISO(date)
-      let seance = await prisma.actionCollective.findFirst({
-        where: { themeId: demarches.themeAtelierId, date: dateSeance, deletedAt: null },
-        select: { id: true },
-      })
-      if (!seance) {
-        seance = await prisma.actionCollective.create({
-          data: { themeId: demarches.themeAtelierId, date: dateSeance },
+      for (const themeId of themeAtelierIds) {
+        let seance = await prisma.actionCollective.findFirst({
+          where: { themeId, date: dateSeance, deletedAt: null },
+          select: { id: true },
         })
+        if (!seance) {
+          seance = await prisma.actionCollective.create({
+            data: { themeId, date: dateSeance },
+          })
+        }
+        atelierIds.push(seance.id)
       }
-      actionCollectiveIdResolu = seance.id
     }
-    // Construire les démarches pour persistence (sans themeAtelierId, avec actionCollectiveId résolu)
-    const { themeAtelierId: _t, ...demarchesSansTheme } = demarches ?? {}
+    // Construire les démarches pour persistence (sans themeAtelierIds)
+    const { themeAtelierIds: _t, ...demarchesSansTheme } = demarches ?? {}
     const demarchesPersist = {
       ...demarchesSansTheme,
-      actionCollectiveId: actionCollectiveIdResolu,
-      atelierParticipation: !!actionCollectiveIdResolu || !!demarches?.atelierParticipation,
+      atelierParticipation: atelierIds.length > 0 || !!demarches?.atelierParticipation,
     }
 
     const visite = await prisma.visit.create({
@@ -111,22 +117,22 @@ export async function POST(request: Request) {
         fse:         fse ?? false,
         saisieParId: Number(session.user.id),
         demarches:   { create: demarchesPersist },
+        ateliers:    atelierIds.length > 0 ? { create: atelierIds.map((id) => ({ actionCollectiveId: id })) } : undefined,
       },
     })
 
-    // Ajout automatique comme participant à l'atelier
-    const atelId = demarchesPersist.actionCollectiveId
-    if (atelId && resolvedPersonId) {
+    // Ajout automatique comme participant à chaque atelier
+    for (const atelId of atelierIds) {
       await prisma.participationAtelier.upsert({
         where: {
           actionCollectiveId_personId: {
             actionCollectiveId: atelId,
-            personId: resolvedPersonId,
+            personId: resolvedPersonId!,
           },
         },
         create: {
           actionCollectiveId: atelId,
-          personId: resolvedPersonId,
+          personId: resolvedPersonId!,
         },
         update: { deletedAt: null },
       })

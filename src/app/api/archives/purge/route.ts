@@ -107,15 +107,20 @@ export async function DELETE(req: Request) {
       })
     }
 
-    // Demarches → FK vers Visit, Accompagnement, ActionCollective
+    // VisiteAtelier → FK vers Visit et ActionCollective
+    if (visitIds.length > 0) {
+      await tx.visiteAtelier.deleteMany({ where: { visitId: { in: visitIds } } })
+    }
+    if (atelierIds.length > 0) {
+      await tx.visiteAtelier.deleteMany({ where: { actionCollectiveId: { in: atelierIds } } })
+    }
+
+    // Demarches → FK vers Visit, Accompagnement
     if (visitIds.length > 0) {
       await tx.demarches.deleteMany({ where: { visitId: { in: visitIds } } })
     }
     if (accompIds.length > 0) {
       await tx.demarches.deleteMany({ where: { accompagnementId: { in: accompIds } } })
-    }
-    if (atelierIds.length > 0) {
-      await tx.demarches.deleteMany({ where: { actionCollectiveId: { in: atelierIds } } })
     }
 
     // Entretien → FK vers Accompagnement

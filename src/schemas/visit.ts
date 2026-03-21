@@ -101,8 +101,7 @@ export const schemaDemarcheVisite = z.object({
 
   // ATELIERS DE REDYNAMISATION
   atelierParticipation:       z.boolean().default(false),
-  actionCollectiveId:         z.number().int().positive().nullish(),
-  themeAtelierId:             z.number().int().positive().nullish(),
+  themeAtelierIds:            z.array(z.number().int().positive()).optional().default([]),
 })
 
 export const schemaCreerVisite = z.object({

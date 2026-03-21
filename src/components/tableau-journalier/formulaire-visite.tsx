@@ -46,11 +46,13 @@ export function FormulaireVisite({ dateISO, mode, visite }: Props) {
   const [orienteParFT, setOrienteParFT] = useState(visite?.orienteParFT ?? false)
   const [fse,          setFse]          = useState(visite?.fse ?? false)
   const [commentaire, setCommentaire]   = useState(visite?.commentaire ?? '')
-  const [demarches, setDemarches]       = useState<DemarcheChamps>(
-    visite?.demarches
+  const [demarches, setDemarches]       = useState<DemarcheChamps>(() => {
+    const base = visite?.demarches
       ? fromPrisma(visite.demarches as unknown as Record<string, unknown>)
-      : DEMARCHE_VIDE,
-  )
+      : { ...DEMARCHE_VIDE }
+    const themeAtelierIds = (visite?.ateliers ?? []).map((a) => a.actionCollective.themeId)
+    return { ...base, themeAtelierIds, atelierParticipation: themeAtelierIds.length > 0 || base.atelierParticipation }
+  })
 
   const [dateVisite, setDateVisite]     = useState(
     visite ? visite.date.toISOString().slice(0, 10) : dateISO
