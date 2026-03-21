@@ -11,8 +11,10 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { peutAcceder } from '@/lib/permissions'
 import { BoutonExportAteliers } from '@/components/ateliers/bouton-export-ateliers'
 import { TableauAteliers } from '@/components/ateliers/tableau-ateliers'
+import { SectionPlanningMensuel } from '@/components/ateliers/section-planning-mensuel'
 import type { CategorieAvecThemes } from '@/schemas/atelier'
 import type { CategorieAtelierData, GroupeAtelierData, SessionAtelierData } from '@/schemas/atelier'
+import type { PlanningData } from '@/components/ateliers/section-planning-mensuel'
 
 type AtelierAvecRelations = Awaited<ReturnType<typeof prisma.actionCollective.findMany>>[0] & {
   themeRef: { id: number; nom: string; categorie: { id: number; nom: string; couleur: string; ordre: number } }
@@ -83,6 +85,23 @@ export default async function AteliersPage({
   const where: Prisma.ActionCollectiveWhereInput = conditions.length === 1
     ? conditions[0]
     : { AND: conditions }
+
+  // Mois courant pour le planning
+  const maintenant    = new Date()
+  const moisCourant   = maintenant.getMonth() + 1
+  const anneeCourante = maintenant.getFullYear()
+
+  // Charger les plannings mensuels (sans le contenu binaire)
+  const planningsRaw = await prisma.planningMensuel.findMany({
+    where:   { deletedAt: null },
+    select:  { id: true, mois: true, annee: true, nom: true, createdAt: true },
+    orderBy: [{ annee: 'desc' }, { mois: 'desc' }],
+    take:    12,
+  })
+  const plannings: PlanningData[] = planningsRaw.map((p) => ({
+    ...p,
+    createdAt: p.createdAt.toISOString(),
+  }))
 
   const ateliers = await prisma.actionCollective.findMany({
     where,
@@ -188,6 +207,14 @@ export default async function AteliersPage({
 
   return (
     <main className="container mx-auto px-4 py-6">
+      {/* Planning mensuel */}
+      <SectionPlanningMensuel
+        planningsInitiaux={plannings}
+        peutGerer={peutGerer}
+        moisCourant={moisCourant}
+        anneeCourante={anneeCourante}
+      />
+
       {/* En-tête */}
       <div className="mb-6 flex items-center justify-between">
         <div>

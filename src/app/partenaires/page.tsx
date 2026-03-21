@@ -9,6 +9,7 @@ import { NavigationAnnee } from '@/components/tableau-journalier/navigation-anne
 import { BoutonExportPartenaires } from '@/components/tableau-journalier/bouton-export-partenaires'
 import { TableauPartenaires, PARTENAIRES_FIXES } from '@/components/tableau-journalier/tableau-partenaires'
 import { ListePersonnesPartenaire } from '@/components/tableau-journalier/liste-personnes-partenaire'
+import { AjouterPartenaire } from '@/components/tableau-journalier/ajouter-partenaire'
 import type { JourData } from '@/components/tableau-journalier/tableau-partenaires'
 import type { EntreePersonne } from '@/components/tableau-journalier/liste-personnes-partenaire'
 
@@ -107,7 +108,7 @@ export default async function AccueilPartenairesPage({
         <table className="w-full text-sm border-collapse">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="border-b-2 border-gray-400 px-3 py-2 text-left text-blue-700">Partenaire</th>
+              <th className="border-b-2 border-gray-400 px-3 py-2 text-left text-blue-700">Partenaires</th>
               <th className="border-b-2 border-l-2 border-gray-400 px-3 py-2 text-center w-24 text-blue-700">Total</th>
             </tr>
           </thead>
@@ -134,6 +135,8 @@ export default async function AccueilPartenairesPage({
           </tbody>
         </table>
       </div>
+
+      <AjouterPartenaire />
     </main>
   )
 }

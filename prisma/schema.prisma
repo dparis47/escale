@@ -105,6 +105,7 @@ model User {
   ateliersModifies ActionCollective[] @relation("ActionCollectiveModifiePar")
 
   auditLogs AuditLog[]
+  plannings PlanningMensuel[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -305,6 +306,7 @@ model Demarches {
   mobilitItineraire        Boolean @default(false)
   mobilitMicroCredit       Boolean @default(false)
   mobilitCovoiturage       Boolean @default(false)
+  mobilitProblemeMobilite  Boolean @default(false)
 
   // LOGEMENT
   logementHabitatIndigne Boolean @default(false)
@@ -319,8 +321,17 @@ model Demarches {
   numeriqueCoursInfo       Boolean @default(false)
 
   // AUTRES
-  autresInfoConseil Boolean @default(false)
-  autresInput       String?
+  autresInfoConseil             Boolean @default(false)
+  autresOrientationPartenaire   Boolean @default(false)
+  autresOrientInfodroits        Boolean @default(false)
+  autresOrientDefenseurDroits   Boolean @default(false)
+  autresOrientFranceService     Boolean @default(false)
+  autresOrientPrefecture        Boolean @default(false)
+  autresOrientMissionLocale     Boolean @default(false)
+  autresOrientCimade            Boolean @default(false)
+  autresOrientSosSurendettement Boolean @default(false)
+  autresOrientAssocCaritative   Boolean @default(false)
+  autresInput                   String?
 
   // LUTTE CONTRE L'ISOLEMENT
   isolementLienSocial Boolean @default(false)
@@ -714,4 +725,23 @@ model AuditLog {
   @@index([entite, entiteId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// ============================================================
+// PLANNING MENSUEL
+// ============================================================
+
+model PlanningMensuel {
+  id           Int      @id @default(autoincrement())
+  mois         Int      // 1-12
+  annee        Int      // ex: 2025
+  nom          String   // nom original du fichier PDF
+  contenu      Bytes    // PDF stocké en base
+  uploadeParId Int
+  uploadePar   User     @relation(fields: [uploadeParId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@unique([mois, annee])
 }

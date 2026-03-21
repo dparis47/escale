@@ -73,6 +73,7 @@ export type DemarcheChamps = {
   mobilitItineraire:         boolean
   mobilitMicroCredit:        boolean
   mobilitCovoiturage:        boolean
+  mobilitProblemeMobilite:   boolean
 
   // LOGEMENT
   logementHabitatIndigne:    boolean
@@ -87,8 +88,17 @@ export type DemarcheChamps = {
   numeriqueCoursInfo:        boolean
 
   // AUTRES
-  autresInfoConseil:         boolean
-  autresInput:               string | null
+  autresInfoConseil:              boolean
+  autresOrientationPartenaire:    boolean
+  autresOrientInfodroits:         boolean
+  autresOrientDefenseurDroits:    boolean
+  autresOrientFranceService:      boolean
+  autresOrientPrefecture:         boolean
+  autresOrientMissionLocale:      boolean
+  autresOrientCimade:             boolean
+  autresOrientSosSurendettement:  boolean
+  autresOrientAssocCaritative:    boolean
+  autresInput:                    string | null
 
   // LUTTE CONTRE L'ISOLEMENT
   isolementLienSocial:       boolean
@@ -220,6 +230,7 @@ export const DEMARCHE_VIDE: DemarcheChamps = {
   mobilitItineraire:          false,
   mobilitMicroCredit:         false,
   mobilitCovoiturage:         false,
+  mobilitProblemeMobilite:    false,
   logementHabitatIndigne:     false,
   logementDemenagement:       false,
   logementAcces:              false,
@@ -228,8 +239,17 @@ export const DEMARCHE_VIDE: DemarcheChamps = {
   numeriqueEspaceNumerique:   false,
   numeriqueAccompagnement:    false,
   numeriqueCoursInfo:         false,
-  autresInfoConseil:          false,
-  autresInput:                null,
+  autresInfoConseil:             false,
+  autresOrientationPartenaire:   false,
+  autresOrientInfodroits:        false,
+  autresOrientDefenseurDroits:   false,
+  autresOrientFranceService:     false,
+  autresOrientPrefecture:        false,
+  autresOrientMissionLocale:     false,
+  autresOrientCimade:            false,
+  autresOrientSosSurendettement: false,
+  autresOrientAssocCaritative:   false,
+  autresInput:                   null,
   isolementLienSocial:        false,
   parentaliteSoutien:         false,
   parentaliteModeGarde:       false,
@@ -396,7 +416,8 @@ export const ARBRE_DEMARCHES: NoeudTheme[] = [
       { type: 'feuille', champ: 'mobilitApreva',     label: 'Location Apreva' },
       { type: 'feuille', champ: 'mobilitItineraire', label: "Aide au calcul d'itinéraire" },
       { type: 'feuille', champ: 'mobilitMicroCredit', label: "Micro crédit pour l'achat d'un véhicule" },
-      { type: 'feuille', champ: 'mobilitCovoiturage', label: 'Co-voiturage' },
+      { type: 'feuille', champ: 'mobilitCovoiturage',      label: 'Co-voiturage' },
+      { type: 'feuille', champ: 'mobilitProblemeMobilite', label: 'Problème de mobilité' },
     ],
   },
   {
@@ -405,7 +426,7 @@ export const ARBRE_DEMARCHES: NoeudTheme[] = [
       { type: 'feuille', champ: 'logementHabitatIndigne', label: 'Habitat indigne' },
       { type: 'feuille', champ: 'logementDemenagement',   label: 'Déménagement' },
       { type: 'feuille', champ: 'logementAcces',          label: 'Accès au logement (parc public / privé)' },
-      { type: 'feuille', champ: 'logementOrientation',    label: 'Orientation partenaires (ADIL, Hurbanis, Bailleurs sociaux…)' },
+      { type: 'feuille', champ: 'logementOrientation',    label: 'Orientation partenaires (ADIL, Urbanis, Bailleurs sociaux…)' },
       { type: 'feuille', champ: 'logementRecherche',      label: 'Recherche de logement' },
     ],
   },
@@ -421,6 +442,20 @@ export const ARBRE_DEMARCHES: NoeudTheme[] = [
     type: 'theme', id: 'autres', label: 'AUTRES',
     enfants: [
       { type: 'feuille', champ: 'autresInfoConseil', label: 'Info / Conseil' },
+      { type: 'feuille', champ: 'autresOrientationPartenaire', label: 'Orientation partenaire' },
+      {
+        type: 'section', id: 'autres-orient-detail', label: '',
+        enfants: [
+          { type: 'feuille', champ: 'autresOrientInfodroits',        label: 'Infodroits' },
+          { type: 'feuille', champ: 'autresOrientDefenseurDroits',   label: 'Défenseur des droits' },
+          { type: 'feuille', champ: 'autresOrientFranceService',     label: 'France Service' },
+          { type: 'feuille', champ: 'autresOrientPrefecture',        label: 'Préfecture' },
+          { type: 'feuille', champ: 'autresOrientMissionLocale',     label: 'Mission Locale' },
+          { type: 'feuille', champ: 'autresOrientCimade',            label: 'La CIMADE' },
+          { type: 'feuille', champ: 'autresOrientSosSurendettement', label: 'SOS Surendettement' },
+          { type: 'feuille', champ: 'autresOrientAssocCaritative',   label: 'Association caritative' },
+        ],
+      },
       { type: 'texte',   champ: 'autresInput',       label: 'Autres' },
     ],
   },
@@ -694,6 +729,7 @@ export function fromPrisma(obj: Record<string, unknown>): DemarcheChamps {
     mobilitItineraire:          bool('mobilitItineraire'),
     mobilitMicroCredit:         bool('mobilitMicroCredit'),
     mobilitCovoiturage:         bool('mobilitCovoiturage'),
+    mobilitProblemeMobilite:    bool('mobilitProblemeMobilite'),
     logementHabitatIndigne:     bool('logementHabitatIndigne'),
     logementDemenagement:       bool('logementDemenagement'),
     logementAcces:              bool('logementAcces'),
@@ -702,8 +738,17 @@ export function fromPrisma(obj: Record<string, unknown>): DemarcheChamps {
     numeriqueEspaceNumerique:   bool('numeriqueEspaceNumerique'),
     numeriqueAccompagnement:    bool('numeriqueAccompagnement'),
     numeriqueCoursInfo:         bool('numeriqueCoursInfo'),
-    autresInfoConseil:          bool('autresInfoConseil'),
-    autresInput:                str('autresInput'),
+    autresInfoConseil:             bool('autresInfoConseil'),
+    autresOrientationPartenaire:   bool('autresOrientationPartenaire'),
+    autresOrientInfodroits:        bool('autresOrientInfodroits'),
+    autresOrientDefenseurDroits:   bool('autresOrientDefenseurDroits'),
+    autresOrientFranceService:     bool('autresOrientFranceService'),
+    autresOrientPrefecture:        bool('autresOrientPrefecture'),
+    autresOrientMissionLocale:     bool('autresOrientMissionLocale'),
+    autresOrientCimade:            bool('autresOrientCimade'),
+    autresOrientSosSurendettement: bool('autresOrientSosSurendettement'),
+    autresOrientAssocCaritative:   bool('autresOrientAssocCaritative'),
+    autresInput:                   str('autresInput'),
     isolementLienSocial:        bool('isolementLienSocial'),
     parentaliteSoutien:         bool('parentaliteSoutien'),
     parentaliteModeGarde:       bool('parentaliteModeGarde'),

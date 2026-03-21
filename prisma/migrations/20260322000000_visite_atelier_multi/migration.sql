@@ -18,12 +18,22 @@ ALTER TABLE "VisiteAtelier" ADD CONSTRAINT "VisiteAtelier_visitId_fkey" FOREIGN 
 ALTER TABLE "VisiteAtelier" ADD CONSTRAINT "VisiteAtelier_actionCollectiveId_fkey" FOREIGN KEY ("actionCollectiveId") REFERENCES "ActionCollective"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- Migration des données existantes : déplacer Demarches.actionCollectiveId vers VisiteAtelier
-INSERT INTO "VisiteAtelier" ("visitId", "actionCollectiveId")
-SELECT v.id, d."actionCollectiveId"
-FROM "Visit" v
-JOIN "Demarches" d ON d."visitId" = v.id
-WHERE d."actionCollectiveId" IS NOT NULL
-  AND v."deletedAt" IS NULL;
+-- Conditionnel : la colonne a pu être supprimée par une migration précédente sur base existante
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'Demarches'
+      AND column_name  = 'actionCollectiveId'
+  ) THEN
+    INSERT INTO "VisiteAtelier" ("visitId", "actionCollectiveId")
+    SELECT v.id, d."actionCollectiveId"
+    FROM "Visit" v
+    JOIN "Demarches" d ON d."visitId" = v.id
+    WHERE d."actionCollectiveId" IS NOT NULL
+      AND v."deletedAt" IS NULL;
+  END IF;
+END $$;
 
 -- RemoveForeignKey
 ALTER TABLE "Demarches" DROP CONSTRAINT IF EXISTS "Demarches_actionCollectiveId_fkey";

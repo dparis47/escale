@@ -27,21 +27,21 @@ function dateAujourdhui() {
 }
 
 export function ListePersonnesPartenaire({ partenaire, initial }: Props) {
-  const [personnes,    setPersonnes]    = useState<EntreePersonne[]>(initial)
-  const [nomInput,     setNomInput]     = useState('')
-  const [dateInput,    setDateInput]    = useState(dateAujourdhui)
-  const [enAjout,      setEnAjout]      = useState(false)
-  const [enSuppr,      setEnSuppr]      = useState<number | null>(null)
-  const [enEdition,    setEnEdition]    = useState<number | null>(null)
-  const [editNom,      setEditNom]      = useState('')
-  const [editDate,     setEditDate]     = useState('')
-  const [enSauvegarde, setEnSauvegarde] = useState(false)
+  const [personnes,        setPersonnes]        = useState<EntreePersonne[]>(initial)
+  const [nomInputParDate,  setNomInputParDate]  = useState<Record<string, string>>({})
+  const [dateInput,        setDateInput]        = useState(dateAujourdhui)
+  const [nomInput,         setNomInput]         = useState('')
+  const [enAjout,          setEnAjout]          = useState(false)
+  const [enSuppr,          setEnSuppr]          = useState<number | null>(null)
+  const [enEdition,        setEnEdition]        = useState<number | null>(null)
+  const [editNom,          setEditNom]          = useState('')
+  const [editDate,         setEditDate]         = useState('')
+  const [enSauvegarde,     setEnSauvegarde]     = useState(false)
   const router = useRouter()
 
   const personnesNommees  = personnes.filter((p) => p.nom !== ANONYME)
   const personnesAnonymes = personnes.filter((p) => p.nom === ANONYME)
 
-  // Toutes les dates présentes (nommées + anonymes), triées
   const toutesLesDates = [...new Set(personnes.map((p) => p.dateRDV))].sort()
 
   function ouvrirEdition(p: EntreePersonne) {
@@ -68,24 +68,49 @@ export function ListePersonnesPartenaire({ partenaire, initial }: Props) {
     setEnSauvegarde(false)
   }
 
-  async function ajouter() {
-    const noms = nomInput.split('\n').map((n) => n.trim()).filter(Boolean)
-    if (noms.length === 0 || !dateInput) return
+  async function ajouterNomme(date: string) {
+    const nom = (nomInputParDate[date] ?? '').trim()
+    if (!nom) return
     setEnAjout(true)
-    const creees: EntreePersonne[] = []
-    for (const nom of noms) {
-      const res = await fetch('/api/personnes-partenaires', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ date: dateInput, partenaire, nom, dateRDV: dateInput }),
-      })
-      if (res.ok) {
-        const created = await res.json() as { id: number; nom: string; dateRDV: string }
-        creees.push({ id: created.id, nom: created.nom, dateRDV: new Date(created.dateRDV).toISOString().slice(0, 10) })
-      }
+    const res = await fetch('/api/personnes-partenaires', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ date, partenaire, nom, dateRDV: date }),
+    })
+    if (res.ok) {
+      const created = await res.json() as { id: number; nom: string; dateRDV: string }
+      setPersonnes((prev) => [...prev, {
+        id:      created.id,
+        nom:     created.nom,
+        dateRDV: new Date(created.dateRDV).toISOString().slice(0, 10),
+      }])
+      setNomInputParDate((prev) => ({ ...prev, [date]: '' }))
+      router.refresh()
     }
-    if (creees.length > 0) {
-      setPersonnes((prev) => [...prev, ...creees])
+    setEnAjout(false)
+  }
+
+  async function ajouterDepuisFormulaire() {
+    if (!dateInput) return
+    const nom = nomInput.trim()
+    setEnAjout(true)
+    const res = await fetch('/api/personnes-partenaires', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        date:       dateInput,
+        partenaire,
+        nom:        nom || ANONYME,
+        dateRDV:    dateInput,
+      }),
+    })
+    if (res.ok) {
+      const created = await res.json() as { id: number; nom: string; dateRDV: string }
+      setPersonnes((prev) => [...prev, {
+        id:      created.id,
+        nom:     created.nom,
+        dateRDV: new Date(created.dateRDV).toISOString().slice(0, 10),
+      }])
       setNomInput('')
       router.refresh()
     }
@@ -127,20 +152,46 @@ export function ListePersonnesPartenaire({ partenaire, initial }: Props) {
   }
 
   return (
-    <div className="mt-1 space-y-0.5 pl-1">
+    <div className="mt-1 space-y-2 pl-1">
 
       {/* Affichage groupé par date */}
       {toutesLesDates.map((date) => {
         const nommeesDuJour  = personnesNommees.filter((p)  => p.dateRDV === date)
         const anonymesDuJour = personnesAnonymes.filter((p) => p.dateRDV === date)
+        const total          = nommeesDuJour.length + anonymesDuJour.length
 
         return (
           <div key={date} className="space-y-0.5">
+
+            {/* Ligne date + compteur total */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="whitespace-nowrap w-20 shrink-0 text-foreground/70">
+                {formaterDate(date)}
+              </span>
+              <span className="text-muted-foreground">Nombre de personnes :</span>
+              <span className="w-6 text-center font-medium text-foreground">{total}</span>
+              <button
+                type="button"
+                onClick={() => retirerAnonyme(date)}
+                disabled={anonymesDuJour.length === 0}
+                className="h-5 w-5 rounded border border-input text-center leading-none hover:bg-muted disabled:opacity-40"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => ajouterAnonyme(date)}
+                className="h-5 w-5 rounded border border-input text-center leading-none hover:bg-muted"
+              >
+                +
+              </button>
+            </div>
+
             {/* Personnes nommées */}
-            {nommeesDuJour.map((p, i) => {
+            {nommeesDuJour.map((p) => {
               if (enEdition === p.id) {
                 return (
-                  <div key={p.id} className="flex items-center gap-1 text-xs">
+                  <div key={p.id} className="flex items-center gap-1 pl-20 text-xs">
                     <input
                       type="date"
                       value={editDate}
@@ -174,10 +225,7 @@ export function ListePersonnesPartenaire({ partenaire, initial }: Props) {
                 )
               }
               return (
-                <div key={p.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="whitespace-nowrap w-20 text-foreground/70">
-                    {i === 0 ? formaterDate(date) : ''}
-                  </span>
+                <div key={p.id} className="flex items-center gap-2 pl-20 text-xs text-muted-foreground">
                   <span className="flex-1">{p.nom}</span>
                   <button
                     type="button"
@@ -198,68 +246,53 @@ export function ListePersonnesPartenaire({ partenaire, initial }: Props) {
               )
             })}
 
-            {/* Compteur anonymes pour cette date */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="whitespace-nowrap w-20 text-foreground/70">
-                {nommeesDuJour.length === 0 ? formaterDate(date) : ''}
-              </span>
-              <span className="italic">sans nom :</span>
-              <span className="w-5 text-center font-medium text-foreground">{anonymesDuJour.length}</span>
+            {/* Input ajout nom pour cette date */}
+            <div className="flex items-center gap-1 pl-20">
+              <input
+                type="text"
+                value={nomInputParDate[date] ?? ''}
+                onChange={(e) => setNomInputParDate((prev) => ({ ...prev, [date]: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') ajouterNomme(date) }}
+                placeholder="Nom…"
+                className="h-6 w-32 rounded border border-input px-1.5 text-xs"
+              />
               <button
                 type="button"
-                onClick={() => ajouterAnonyme(date)}
-                className="h-5 w-5 rounded border border-input text-center leading-none hover:bg-muted"
+                onClick={() => ajouterNomme(date)}
+                disabled={!(nomInputParDate[date] ?? '').trim() || enAjout}
+                className="h-6 rounded border border-input px-2 text-xs hover:bg-muted disabled:opacity-40"
               >
-                +
-              </button>
-              <button
-                type="button"
-                onClick={() => retirerAnonyme(date)}
-                disabled={anonymesDuJour.length === 0}
-                className="text-muted-foreground hover:text-foreground hover:underline disabled:opacity-40"
-              >
-                Supprimer
+                Ajouter
               </button>
             </div>
           </div>
         )
       })}
 
-      {/* Formulaire ajout nouvelle date */}
-      <div className="flex gap-1 pt-1">
+      {/* Formulaire nouvelle date */}
+      <div className="flex items-center gap-1 pt-1">
         <input
           type="date"
           value={dateInput}
           onChange={(e) => setDateInput(e.target.value)}
-          className="h-6 self-start rounded border border-input px-1 text-xs w-32 shrink-0"
+          className="h-6 rounded border border-input px-1 text-xs w-32 shrink-0"
         />
-        <textarea
+        <input
+          type="text"
           value={nomInput}
           onChange={(e) => setNomInput(e.target.value)}
-          placeholder={"Un nom par ligne…"}
-          className="flex-1 rounded border border-input px-1.5 py-0.5 text-xs resize-none"
-          rows={2}
-          maxLength={2000}
+          onKeyDown={(e) => { if (e.key === 'Enter') ajouterDepuisFormulaire() }}
+          placeholder="Nom (optionnel)…"
+          className="h-6 flex-1 rounded border border-input px-1.5 text-xs"
         />
-        <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={ajouter}
-            disabled={!nomInput.trim() || !dateInput || enAjout}
-            className="rounded border border-input px-2 h-6 text-xs hover:bg-muted disabled:opacity-40"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={() => ajouterAnonyme(dateInput)}
-            disabled={!dateInput}
-            title="Ajouter un anonyme"
-            className="rounded border border-input px-1 h-6 text-xs hover:bg-muted disabled:opacity-40 italic text-muted-foreground"
-          >
-            +?
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={ajouterDepuisFormulaire}
+          disabled={!dateInput || enAjout}
+          className="h-6 rounded border border-input px-2 text-xs hover:bg-muted disabled:opacity-40"
+        >
+          Ajouter
+        </button>
       </div>
     </div>
   )
