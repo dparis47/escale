@@ -342,28 +342,73 @@ async function main() {
   })
 
   // ── Catégories, thèmes et prestataires d'ateliers ──────────
+
+  const catCulture = await prisma.categorieAtelier.upsert({
+    where: { nom: 'Accès à la culture' },
+    update: {},
+    create: { nom: 'Accès à la culture', couleur: 'purple', ordre: 1 },
+  })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catCulture.id, nom: 'Cinéma' } },                       update: {}, create: { nom: 'Cinéma',                       categorieId: catCulture.id, ordre: 1 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catCulture.id, nom: 'Jeux de société' } },              update: {}, create: { nom: 'Jeux de société',              categorieId: catCulture.id, ordre: 2 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catCulture.id, nom: "L'Escale fait son cinéma" } },      update: {}, create: { nom: "L'Escale fait son cinéma",      categorieId: catCulture.id, ordre: 3 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catCulture.id, nom: 'Projet culturel itinérant' } },    update: {}, create: { nom: 'Projet culturel itinérant',    categorieId: catCulture.id, ordre: 4 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catCulture.id, nom: 'Sortie culturelle' } },            update: {}, create: { nom: 'Sortie culturelle',            categorieId: catCulture.id, ordre: 5 } })
+
+  const catAlimentation = await prisma.categorieAtelier.upsert({
+    where: { nom: 'Alimentation' },
+    update: {},
+    create: { nom: 'Alimentation', couleur: 'orange', ordre: 2 },
+  })
+  const themeCuisine = await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catAlimentation.id, nom: 'Cuisine' } },              update: {}, create: { nom: 'Cuisine',              categorieId: catAlimentation.id, ordre: 1 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catAlimentation.id, nom: 'Cuisine anti-gaspi' } },      update: {}, create: { nom: 'Cuisine anti-gaspi',      categorieId: catAlimentation.id, ordre: 2 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catAlimentation.id, nom: 'Cuisine et diététique' } },   update: {}, create: { nom: 'Cuisine et diététique',   categorieId: catAlimentation.id, ordre: 3 } })
+
+  const catBudget = await prisma.categorieAtelier.upsert({
+    where: { nom: 'Budget' },
+    update: {},
+    create: { nom: 'Budget', couleur: 'amber', ordre: 3 },
+  })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catBudget.id, nom: 'Gestion du budget' } }, update: {}, create: { nom: 'Gestion du budget', categorieId: catBudget.id, ordre: 1 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catBudget.id, nom: 'Atelier Bilan' } },     update: {}, create: { nom: 'Atelier Bilan',     categorieId: catBudget.id, ordre: 2 } })
+
   const catNumerique = await prisma.categorieAtelier.upsert({
-    where: { nom: 'Numérique' },
+    where: { nom: 'Inclusion numérique' },
     update: {},
-    create: { nom: 'Numérique', couleur: 'blue', ordre: 1 },
+    create: { nom: 'Inclusion numérique', couleur: 'blue', ordre: 4 },
   })
+  const themeInfo = await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catNumerique.id, nom: "Cours d'informatique" } }, update: {}, create: { nom: "Cours d'informatique", categorieId: catNumerique.id, ordre: 1 } })
 
-  const catBienEtre = await prisma.categorieAtelier.upsert({
-    where: { nom: 'Bien-être' },
+  const catParentalite = await prisma.categorieAtelier.upsert({
+    where: { nom: 'Parentalité' },
     update: {},
-    create: { nom: 'Bien-être', couleur: 'green', ordre: 2 },
+    create: { nom: 'Parentalité', couleur: 'pink', ordre: 5 },
   })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catParentalite.id, nom: "Noël de L'Escale" } },      update: {}, create: { nom: "Noël de L'Escale",      categorieId: catParentalite.id, ordre: 1 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catParentalite.id, nom: 'Atelier environnement' } }, update: {}, create: { nom: 'Atelier environnement', categorieId: catParentalite.id, ordre: 2 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catParentalite.id, nom: 'Ciné parents-enfants' } }, update: {}, create: { nom: 'Ciné parents-enfants', categorieId: catParentalite.id, ordre: 3 } })
 
-  const themeInfo = await prisma.themeAtelierRef.upsert({
-    where: { categorieId_nom: { categorieId: catNumerique.id, nom: "Cours d'Informatique" } },
+  const catSanteBienEtre = await prisma.categorieAtelier.upsert({
+    where: { nom: 'Santé bien-être' },
     update: {},
-    create: { nom: "Cours d'Informatique", categorieId: catNumerique.id, ordre: 1 },
+    create: { nom: 'Santé bien-être', couleur: 'green', ordre: 6 },
   })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteBienEtre.id, nom: 'Socio-Esthétique' } },  update: {}, create: { nom: 'Socio-Esthétique',  categorieId: catSanteBienEtre.id, ordre: 1 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteBienEtre.id, nom: 'Médiation équine' } }, update: {}, create: { nom: 'Médiation équine', categorieId: catSanteBienEtre.id, ordre: 2 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteBienEtre.id, nom: 'Atelier créatif' } },  update: {}, create: { nom: 'Atelier créatif',  categorieId: catSanteBienEtre.id, ordre: 3 } })
 
-  const themeCuisine = await prisma.themeAtelierRef.upsert({
-    where: { categorieId_nom: { categorieId: catBienEtre.id, nom: 'Cuisine' } },
+  const catSanteActivite = await prisma.categorieAtelier.upsert({
+    where: { nom: "Santé par l'activité physique" },
     update: {},
-    create: { nom: 'Cuisine', categorieId: catBienEtre.id, ordre: 1 },
+    create: { nom: "Santé par l'activité physique", couleur: 'teal', ordre: 7 },
+  })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteActivite.id, nom: 'Randonnée' } },     update: {}, create: { nom: 'Randonnée',     categorieId: catSanteActivite.id, ordre: 1 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteActivite.id, nom: 'Sport en salle' } }, update: {}, create: { nom: 'Sport en salle', categorieId: catSanteActivite.id, ordre: 2 } })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteActivite.id, nom: 'Piscine' } },        update: {}, create: { nom: 'Piscine',        categorieId: catSanteActivite.id, ordre: 3 } })
+
+  await prisma.categorieAtelier.upsert({
+    where: { nom: 'Santé environnement' },
+    update: {},
+    create: { nom: 'Santé environnement', couleur: 'sky', ordre: 8 },
   })
 
   await prisma.prestataire.upsert({

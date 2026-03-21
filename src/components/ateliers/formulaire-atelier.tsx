@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Pencil, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formaterDateISO } from '@/lib/dates'
 import { DialogueGererPrestataires } from '@/components/ateliers/dialogue-prestataire'
 import { DialogueGererThemes } from '@/components/ateliers/dialogue-theme'
+import { SelecteurTheme } from '@/components/ateliers/selecteur-theme'
 import type { CategorieAvecThemes, PrestataireOption } from '@/schemas/atelier'
 
-type Mode = 'creation' | 'edition' | 'edition-groupe'
+type Mode = 'creation' | 'edition' | 'edition-groupe' | 'ajout-seances'
 
 interface AtelierData {
   id:            number
@@ -44,6 +46,16 @@ interface Props {
 interface Seance {
   date:       string
   themeAutre: string
+}
+
+interface SeanceEditable {
+  id:             number
+  date:           Date
+  themeAutre:     string | null
+  enEdition:      boolean
+  editDate:       string
+  editThemeAutre: string
+  enChargement:   boolean
 }
 
 function toInputDate(d: Date | null | undefined): string {
@@ -204,6 +216,19 @@ export function FormulaireAtelier({ mode, atelier, seancesExistantes, retourUrl,
   // Création / edition-groupe : liste de nouvelles séances { date, themeAutre }
   const [seances, setSeances] = useState<Seance[]>([{ date: '', themeAutre: '' }])
 
+  // Edition-groupe : séances existantes éditables
+  const [seancesEditables, setSeancesEditables] = useState<SeanceEditable[]>(
+    () => (seancesExistantes ?? []).map((s) => ({
+      id:             s.id,
+      date:           s.date,
+      themeAutre:     s.themeAutre,
+      enEdition:      false,
+      editDate:       toInputDate(s.date),
+      editThemeAutre: s.themeAutre ?? '',
+      enChargement:   false,
+    }))
+  )
+
   const [categories,   setCategories]   = useState<CategorieAvecThemes[]>([])
   const [prestataires, setPrestataires] = useState<PrestataireOption[]>([])
   const [suggestions,  setSuggestions]  = useState<string[]>([])
@@ -264,6 +289,53 @@ export function FormulaireAtelier({ mode, atelier, seancesExistantes, retourUrl,
     setSeances((prev) => prev.map((s, i) => i === index ? { ...s, [champ]: value } : s))
   }
 
+  function ouvrirEditionSeance(id: number) {
+    setSeancesEditables((prev) => prev.map((s) =>
+      s.id === id
+        ? { ...s, enEdition: true, editDate: toInputDate(s.date), editThemeAutre: s.themeAutre ?? '' }
+        : s
+    ))
+  }
+
+  function annulerEditionSeance(id: number) {
+    setSeancesEditables((prev) => prev.map((s) =>
+      s.id === id ? { ...s, enEdition: false } : s
+    ))
+  }
+
+  async function sauvegarderSeance(id: number, editDate: string, editThemeAutre: string) {
+    if (!editDate) return
+    setSeancesEditables((prev) => prev.map((s) => s.id === id ? { ...s, enChargement: true } : s))
+    try {
+      const res = await fetch(`/api/ateliers/${id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ date: editDate, themeAutre: editThemeAutre || undefined }),
+      })
+      if (!res.ok) return
+      setSeancesEditables((prev) => prev.map((s) =>
+        s.id === id
+          ? { ...s, enEdition: false, enChargement: false, date: new Date(editDate + 'T00:00:00.000Z'), themeAutre: editThemeAutre || null }
+          : s
+      ))
+    } catch {
+      setSeancesEditables((prev) => prev.map((s) => s.id === id ? { ...s, enChargement: false } : s))
+    }
+  }
+
+  async function supprimerSeanceExistante(id: number) {
+    if (!confirm('Supprimer cette séance ?')) return
+    setSeancesEditables((prev) => prev.map((s) => s.id === id ? { ...s, enChargement: true } : s))
+    try {
+      const res = await fetch(`/api/ateliers/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setSeancesEditables((prev) => prev.filter((s) => s.id !== id))
+      }
+    } catch {
+      setSeancesEditables((prev) => prev.map((s) => s.id === id ? { ...s, enChargement: false } : s))
+    }
+  }
+
   async function soumettre() {
     setErreur('')
     setEnChargement(true)
@@ -275,7 +347,7 @@ export function FormulaireAtelier({ mode, atelier, seancesExistantes, retourUrl,
     }
 
     try {
-      if (mode === 'creation') {
+      if (mode === 'creation' || mode === 'ajout-seances') {
         const seancesValides = seances.filter((s) => s.date.trim() !== '')
         if (seancesValides.length === 0) {
           setErreur('Au moins une date est requise.')
@@ -393,36 +465,23 @@ export function FormulaireAtelier({ mode, atelier, seancesExistantes, retourUrl,
   return (
     <div className="max-w-2xl space-y-5">
 
-      {/* Thème (groupé par catégorie) */}
-      <Champ label="Thème" required>
-        <div className="flex max-w-md items-center gap-1">
-          <Select
-            value={themeId ? String(themeId) : undefined}
-            onValueChange={(v) => setThemeId(Number(v))}
-          >
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Sélectionner un thème…" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((cat, ci) => (
-                <SelectGroup key={cat.id}>
-                  {ci > 0 && <div className="mx-1 my-1.5 h-px bg-border" />}
-                  <SelectLabel className="px-2 py-1.5 text-sm font-semibold text-foreground uppercase tracking-wide">
-                    {cat.nom}
-                  </SelectLabel>
-                  {cat.themes.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)} className="pl-5">{t.nom}</SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
-          <DialogueGererThemes categories={categories} onRefresh={chargerCategories} />
-        </div>
-      </Champ>
+      {/* Thème (groupé par catégorie) — masqué en ajout-seances */}
+      {mode !== 'ajout-seances' && (
+        <Champ label="Thème" required>
+          <div className="flex items-center gap-1">
+            <SelecteurTheme
+              categories={categories}
+              value={themeId}
+              onChange={(id) => setThemeId(id)}
+              onRefresh={chargerCategories}
+            />
+            <DialogueGererThemes categories={categories} onRefresh={chargerCategories} />
+          </div>
+        </Champ>
+      )}
 
       {/* Séances selon le mode */}
-      {mode === 'creation' ? (
+      {mode === 'creation' || mode === 'ajout-seances' ? (
         <SectionSeances
           seances={seances}
           onModifier={modifierSeance}
@@ -454,17 +513,79 @@ export function FormulaireAtelier({ mode, atelier, seancesExistantes, retourUrl,
         </>
       ) : (
         <>
-          {/* Séances existantes (lecture seule) */}
-          {seancesExistantes && seancesExistantes.length > 0 && (
+          {/* Séances existantes — éditables */}
+          {seancesEditables.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">Séances existantes</p>
               <div className="rounded-md border divide-y text-sm">
-                {seancesExistantes.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between px-3 py-2">
-                    <span>
-                      {formaterDateISO(new Date(s.date))}
-                      {s.themeAutre && <span className="ml-2 text-muted-foreground">{s.themeAutre}</span>}
-                    </span>
+                {seancesEditables.map((s) => (
+                  <div key={s.id} className="px-3 py-2">
+                    {s.enEdition ? (
+                      <div className="grid grid-cols-[180px_1fr_auto] items-center gap-2">
+                        <Input
+                          type="date"
+                          value={s.editDate}
+                          onChange={(e) => setSeancesEditables((prev) => prev.map((x) =>
+                            x.id === s.id ? { ...x, editDate: e.target.value } : x
+                          ))}
+                          className="h-8"
+                          disabled={s.enChargement}
+                        />
+                        <InputTitre
+                          value={s.editThemeAutre}
+                          onChange={(v) => setSeancesEditables((prev) => prev.map((x) =>
+                            x.id === s.id ? { ...x, editThemeAutre: v } : x
+                          ))}
+                          suggestions={suggestions}
+                          placeholder={themeNom ? placeholderTitre(themeNom) : 'Optionnel…'}
+                        />
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            type="button" variant="ghost" size="icon"
+                            className="h-8 w-8 text-green-600 hover:text-green-700"
+                            onClick={() => sauvegarderSeance(s.id, s.editDate, s.editThemeAutre)}
+                            disabled={!s.editDate || s.enChargement}
+                            title="Enregistrer"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button" variant="ghost" size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={() => annulerEditionSeance(s.id)}
+                            disabled={s.enChargement}
+                            title="Annuler"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span>
+                          {formaterDateISO(new Date(s.date))}
+                          {s.themeAutre && <span className="ml-2 text-muted-foreground">{s.themeAutre}</span>}
+                        </span>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            type="button" variant="ghost" size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => ouvrirEditionSeance(s.id)}
+                            title="Modifier"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button" variant="ghost" size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => supprimerSeanceExistante(s.id)}
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -483,54 +604,60 @@ export function FormulaireAtelier({ mode, atelier, seancesExistantes, retourUrl,
         </>
       )}
 
-      {/* Lieu */}
-      <Champ label="Lieu">
-        <Input
-          value={lieu}
-          onChange={(e) => setLieu(e.target.value)}
-          placeholder="Ex : L'Escale, Café culturel 109…"
-          maxLength={200}
-          className="max-w-sm"
-        />
-      </Champ>
+      {/* Lieu / Prestataire / Notes — masqués en ajout-seances */}
+      {mode !== 'ajout-seances' && (
+        <>
+          <Champ label="Lieu">
+            <Input
+              value={lieu}
+              onChange={(e) => setLieu(e.target.value)}
+              placeholder="Ex : L'Escale, Café culturel 109…"
+              maxLength={200}
+              className="max-w-sm"
+            />
+          </Champ>
 
-      {/* Prestataire (Select + gestion) */}
-      <Champ label="Prestataire">
-        <div className="flex max-w-sm items-center gap-1">
-          <Select
-            value={prestataireId ? String(prestataireId) : 'aucun'}
-            onValueChange={(v) => setPrestataireId(v === 'aucun' ? null : Number(v))}
-          >
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Aucun" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="aucun">Aucun</SelectItem>
-              {prestataires.map((p) => (
-                <SelectItem key={p.id} value={String(p.id)}>{p.nom}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <DialogueGererPrestataires prestataires={prestataires} onRefresh={chargerPrestataires} />
-        </div>
-      </Champ>
+          <Champ label="Prestataire">
+            <div className="flex max-w-sm items-center gap-1">
+              <Select
+                value={prestataireId ? String(prestataireId) : 'aucun'}
+                onValueChange={(v) => setPrestataireId(v === 'aucun' ? null : Number(v))}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Aucun" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="aucun">Aucun</SelectItem>
+                  {prestataires.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.nom}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <DialogueGererPrestataires prestataires={prestataires} onRefresh={chargerPrestataires} />
+            </div>
+          </Champ>
 
-      {/* Notes */}
-      <Champ label="Notes">
-        <Textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          placeholder="Informations complémentaires…"
-          className="max-w-sm"
-        />
-      </Champ>
+          <Champ label="Notes">
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Informations complémentaires…"
+              className="max-w-sm"
+            />
+          </Champ>
+        </>
+      )}
 
       {erreur && <p className="text-sm text-destructive">{erreur}</p>}
 
       <div className="flex gap-3 pt-2">
         <Button onClick={soumettre} disabled={enChargement}>
-          {enChargement ? 'Enregistrement…' : mode === 'creation' ? 'Créer les séances' : mode === 'edition-groupe' ? 'Enregistrer l\u2019atelier' : 'Enregistrer'}
+          {enChargement ? 'Enregistrement…'
+            : mode === 'creation'      ? 'Créer les séances'
+            : mode === 'ajout-seances' ? 'Ajouter les séances'
+            : mode === 'edition-groupe' ? 'Enregistrer l\u2019atelier'
+            : 'Enregistrer'}
         </Button>
         <Button variant="outline" onClick={() => router.back()} disabled={enChargement}>
           Annuler

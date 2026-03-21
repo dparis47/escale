@@ -212,7 +212,7 @@ export default async function AteliersPage({
         <div className="flex items-center gap-2">
           {peutModifier && (
             <Link href="/ateliers/nouveau">
-              <Button>+ Nouvel atelier</Button>
+              <Button>+ Nouvelle action collective</Button>
             </Link>
           )}
         </div>

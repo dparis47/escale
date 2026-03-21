@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 import { formaterDateCourte, capitaliserPrenom } from '@/lib/dates'
 import { Button } from '@/components/ui/button'
 import { peutAcceder } from '@/lib/permissions'
-import { BoutonEmargementSeance } from '@/components/ateliers/bouton-emargement-seance'
 
 export default async function VoirAtelierGroupePage({
   params,
@@ -38,9 +37,7 @@ export default async function VoirAtelierGroupePage({
       prestataireId: reference.prestataireId,
       lieu: reference.lieu,
     },
-    include: {
-      fichiers: { select: { id: true, nom: true }, orderBy: { createdAt: 'asc' } },
-    },
+    select: { id: true, date: true, themeAutre: true },
     orderBy: { date: 'asc' },
   })
 
@@ -125,18 +122,11 @@ export default async function VoirAtelierGroupePage({
                   {compteurParSeance.get(s.id) ?? 0}
                 </td>
                 <td className="px-3 py-2">
-                  <div className="flex items-center gap-0.5">
-                    <Link href={`/ateliers/${s.id}`}>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
-                        Détail
-                      </Button>
-                    </Link>
-                    <BoutonEmargementSeance
-                      atelierId={s.id}
-                      fichiers={s.fichiers}
-                      peutGerer={peutModifier}
-                    />
-                  </div>
+                  <Link href={`/ateliers/${s.id}`}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+                      Détail
+                    </Button>
+                  </Link>
                 </td>
               </tr>
             ))}

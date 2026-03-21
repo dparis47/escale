@@ -5,31 +5,29 @@ import Link from 'next/link'
 import { ChevronDown, ChevronRight, Eye, Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { BoutonSupprimerAtelier } from '@/components/ateliers/bouton-supprimer-atelier'
 import { BoutonSupprimerGroupeAtelier } from '@/components/ateliers/bouton-supprimer-groupe-atelier'
-import { BoutonEmargementSeance } from '@/components/ateliers/bouton-emargement-seance'
-import { DialogueCreerCategorie, DialogueModifierCategorie } from '@/components/ateliers/dialogue-categorie'
+import { BoutonEmargementAtelier } from '@/components/ateliers/bouton-emargement-atelier'
 import { COULEURS_CATEGORIE } from '@/schemas/atelier'
 import type { CategorieAtelierData, GroupeAtelierData, SessionAtelierData } from '@/schemas/atelier'
 
 interface Props {
-  categories: CategorieAtelierData[]
-  estTS: boolean
-  peutGerer: boolean
+  categories:        CategorieAtelierData[]
+  estTS:             boolean
+  peutGerer:         boolean
   participantFilter?: string
 }
 
 interface ParticipantInfo {
   personId: number
-  nom: string
-  prenom: string
-  enASID: boolean
-  enFSE: boolean
+  nom:      string
+  prenom:   string
+  enASID:   boolean
+  enFSE:    boolean
 }
 
 export function TableauAteliers({ categories, estTS, peutGerer, participantFilter }: Props) {
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set())
-  const [cache, setCache] = useState<Map<number, ParticipantInfo[]>>(new Map())
+  const [cache,   setCache]   = useState<Map<number, ParticipantInfo[]>>(new Map())
   const [loading, setLoading] = useState<Set<number>>(new Set())
 
   // Auto-expand toutes les séances quand un filtre participant est actif
@@ -60,15 +58,15 @@ export function TableauAteliers({ categories, estTS, peutGerer, participantFilte
           }>
         }
         const participants: ParticipantInfo[] = data.participants.map((p) => {
-          const accos = p.person.accompagnements
+          const accos   = p.person.accompagnements
           const hasASID = accos.some((a) => a.suiviASID !== null)
-          const hasFSE = accos.some((a) => a.suiviASID === null)
+          const hasFSE  = accos.some((a) => a.suiviASID === null)
           return {
             personId: p.person.id,
-            nom: p.person.nom,
-            prenom: p.person.prenom,
-            enASID: hasASID,
-            enFSE: hasFSE,
+            nom:      p.person.nom,
+            prenom:   p.person.prenom,
+            enASID:   hasASID,
+            enFSE:    hasFSE,
           }
         })
         setCache((prev) => new Map(prev).set(id, participants))
@@ -96,7 +94,7 @@ export function TableauAteliers({ categories, estTS, peutGerer, participantFilte
   }
 
   function toggleGroup(sessions: SessionAtelierData[]) {
-    const ids = sessions.map((s) => s.id)
+    const ids        = sessions.map((s) => s.id)
     const allExpanded = ids.every((id) => expandedSessions.has(id))
     setExpandedSessions((prev) => {
       const s = new Set(prev)
@@ -113,7 +111,7 @@ export function TableauAteliers({ categories, estTS, peutGerer, participantFilte
   }
 
   function renderParticipantsRow(id: number) {
-    const isLoading = loading.has(id)
+    const isLoading   = loading.has(id)
     const participants = cache.get(id)
 
     if (isLoading && !participants) {
@@ -136,7 +134,6 @@ export function TableauAteliers({ categories, estTS, peutGerer, participantFilte
       )
     }
 
-    // Filtrer par nom/prénom si un filtre participant est actif
     const filtered = participantFilter
       ? participants.filter((p) => {
           const search = participantFilter.toLowerCase()
@@ -200,13 +197,13 @@ export function TableauAteliers({ categories, estTS, peutGerer, participantFilte
 // ── Sous-composant catégorie ─────────────────────────────────────────────
 
 interface CategorieRowsProps {
-  cat: CategorieAtelierData
-  couleur: { bg: string; text: string; sub: string }
-  estTS: boolean
-  peutGerer: boolean
-  expandedSessions: Set<number>
-  toggleGroup: (sessions: SessionAtelierData[]) => void
-  toggleSession: (id: number) => void
+  cat:               CategorieAtelierData
+  couleur:           { bg: string; text: string; sub: string }
+  estTS:             boolean
+  peutGerer:         boolean
+  expandedSessions:  Set<number>
+  toggleGroup:       (sessions: SessionAtelierData[]) => void
+  toggleSession:     (id: number) => void
   renderParticipantsRow: (id: number) => React.ReactNode
 }
 
@@ -222,18 +219,10 @@ function CategorieRows({
 }: CategorieRowsProps) {
   return (
     <>
-      {/* En-tête catégorie */}
+      {/* En-tête catégorie — lecture seule */}
       <tr>
         <td colSpan={3} className="border-t-2 border-slate-300 bg-slate-100 px-3 py-2 text-sm font-bold uppercase tracking-wide text-slate-700">
-          <span className="flex items-center justify-between">
-            <span>{cat.nom}</span>
-            {estTS && (
-              <span className="flex items-center gap-0.5">
-                <DialogueModifierCategorie categorie={cat} />
-                <DialogueCreerCategorie apresOrdre={cat.ordre} />
-              </span>
-            )}
-          </span>
+          {cat.nom}
         </td>
       </tr>
       {/* Groupes */}
@@ -257,13 +246,13 @@ function CategorieRows({
 // ── Sous-composant groupe ────────────────────────────────────────────────
 
 interface GroupeRowsProps {
-  groupe: GroupeAtelierData
-  couleur: { bg: string; text: string; sub: string }
-  estTS: boolean
-  peutGerer: boolean
-  expandedSessions: Set<number>
-  toggleGroup: (sessions: SessionAtelierData[]) => void
-  toggleSession: (id: number) => void
+  groupe:            GroupeAtelierData
+  couleur:           { bg: string; text: string; sub: string }
+  estTS:             boolean
+  peutGerer:         boolean
+  expandedSessions:  Set<number>
+  toggleGroup:       (sessions: SessionAtelierData[]) => void
+  toggleSession:     (id: number) => void
   renderParticipantsRow: (id: number) => React.ReactNode
 }
 
@@ -277,12 +266,12 @@ function GroupeRows({
   toggleSession,
   renderParticipantsRow,
 }: GroupeRowsProps) {
-  const allExpanded = groupe.sessions.every((s) => expandedSessions.has(s.id))
-  const ChevronGroupe = allExpanded ? ChevronDown : ChevronRight
+  const allExpanded    = groupe.sessions.every((s) => expandedSessions.has(s.id))
+  const ChevronGroupe  = allExpanded ? ChevronDown : ChevronRight
 
   return (
     <>
-      {/* Ligne de groupe */}
+      {/* Ligne de groupe (atelier) */}
       <tr className={couleur.bg}>
         <td
           className={`cursor-pointer px-3 py-1.5 pl-4 text-xs font-semibold tracking-wide ${couleur.text}`}
@@ -331,7 +320,7 @@ function GroupeRows({
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Link href={`/ateliers/nouveau?themeId=${groupe.sessions[0].themeId}&prestataireId=${groupe.sessions[0].prestataireId ?? ''}&lieu=${encodeURIComponent(groupe.lieu ?? '')}`}>
+                    <Link href={`/ateliers/groupe/${groupe.sessions[0].id}/ajouter-seance`}>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -342,26 +331,20 @@ function GroupeRows({
                 <BoutonSupprimerGroupeAtelier ids={groupe.sessions.map((s) => s.id)} />
               </>
             )}
+            <BoutonEmargementAtelier sessions={groupe.sessions} peutGerer={peutGerer} />
           </div>
         </td>
       </tr>
-      {/* Lignes séances */}
-      {groupe.sessions.map((a) => {
-        const sessionExpanded = expandedSessions.has(a.id)
-        const ChevronSession = sessionExpanded ? ChevronDown : ChevronRight
-        return (
-          <SeanceRows
-            key={a.id}
-            a={a}
-            sessionExpanded={sessionExpanded}
-            ChevronSession={ChevronSession}
-            estTS={estTS}
-            peutGerer={peutGerer}
-            toggleSession={toggleSession}
-            renderParticipantsRow={renderParticipantsRow}
-          />
-        )
-      })}
+      {/* Lignes séances — dates simples, sans boutons d'action */}
+      {groupe.sessions.map((a) => (
+        <SeanceRows
+          key={a.id}
+          a={a}
+          sessionExpanded={expandedSessions.has(a.id)}
+          toggleSession={toggleSession}
+          renderParticipantsRow={renderParticipantsRow}
+        />
+      ))}
     </>
   )
 }
@@ -369,24 +352,15 @@ function GroupeRows({
 // ── Sous-composant séance ────────────────────────────────────────────────
 
 interface SeanceRowsProps {
-  a: SessionAtelierData
-  sessionExpanded: boolean
-  ChevronSession: typeof ChevronDown
-  estTS: boolean
-  peutGerer: boolean
-  toggleSession: (id: number) => void
+  a:                    SessionAtelierData
+  sessionExpanded:      boolean
+  toggleSession:        (id: number) => void
   renderParticipantsRow: (id: number) => React.ReactNode
 }
 
-function SeanceRows({
-  a,
-  sessionExpanded,
-  ChevronSession,
-  estTS,
-  peutGerer,
-  toggleSession,
-  renderParticipantsRow,
-}: SeanceRowsProps) {
+function SeanceRows({ a, sessionExpanded, toggleSession, renderParticipantsRow }: SeanceRowsProps) {
+  const Chevron = sessionExpanded ? ChevronDown : ChevronRight
+
   return (
     <>
       <tr className="border-t hover:bg-muted/30">
@@ -395,48 +369,17 @@ function SeanceRows({
           onClick={() => toggleSession(a.id)}
         >
           <span className="flex items-center gap-1">
-            <ChevronSession className="h-3.5 w-3.5 shrink-0" />
+            <Chevron className="h-3.5 w-3.5 shrink-0" />
             <span>{a.date}</span>
             {a.themeAutre && (
               <span className="ml-1 font-medium text-foreground">{a.themeAutre}</span>
             )}
           </span>
         </td>
-        <td className="px-3 py-2 text-center">
-          {a.nbParticipants}
+        <td className="px-3 py-2 text-center text-sm text-muted-foreground">
+          {a.nbParticipants > 0 ? a.nbParticipants : '—'}
         </td>
-        <td className="px-3 py-2">
-          <div className="flex items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link href={`/ateliers/${a.id}`}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>Voir</TooltipContent>
-            </Tooltip>
-            {estTS && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link href={`/ateliers/${a.id}/modifier`}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent>Modifier</TooltipContent>
-              </Tooltip>
-            )}
-            <BoutonEmargementSeance
-              atelierId={a.id}
-              fichiers={a.fichiers}
-              peutGerer={peutGerer}
-            />
-            <BoutonSupprimerAtelier id={a.id} />
-          </div>
-        </td>
+        <td />
       </tr>
       {sessionExpanded && renderParticipantsRow(a.id)}
     </>
