@@ -10,9 +10,10 @@ import type { Demarches } from '@prisma/client'
 interface Props {
   accompagnementId: number
   demarches:        Demarches | null
+  readOnly?:        boolean
 }
 
-export function SectionDemarches({ accompagnementId, demarches: init }: Props) {
+export function SectionDemarches({ accompagnementId, demarches: init, readOnly }: Props) {
   const router      = useRouter()
   const modeEdition = useModeEdition()
 
@@ -41,14 +42,14 @@ export function SectionDemarches({ accompagnementId, demarches: init }: Props) {
     }
   }
 
-  useRegistrerSauvegarde('demarches', enregistrer)
+  useRegistrerSauvegarde(readOnly ? null : 'demarches', enregistrer)
 
   return (
     <div>
       <ArbreDemarches
         champs={demarches}
         onChange={setDemarches}
-        disabled={!modeEdition}
+        disabled={!modeEdition || readOnly}
       />
       {erreur && <p className="text-sm text-destructive mt-3">{erreur}</p>}
     </div>

@@ -43,13 +43,13 @@ export function SauvegardeProvider({ children }: { children: React.ReactNode }) 
  * Enregistre la fonction de sauvegarde d'une section dans le contexte global.
  * La référence interne est toujours à jour (pattern "latest ref").
  */
-export function useRegistrerSauvegarde(key: string, fn: SaveFn) {
+export function useRegistrerSauvegarde(key: string | null, fn: SaveFn) {
   const ctx = useContext(SauvegardeContext)
   const fnRef = useRef(fn)
   fnRef.current = fn
 
   useEffect(() => {
-    if (!ctx) return
+    if (!ctx || !key) return
     ctx.register(key, () => fnRef.current())
     return () => ctx.unregister(key)
   // eslint-disable-next-line react-hooks/exhaustive-deps

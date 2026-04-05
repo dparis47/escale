@@ -50,7 +50,7 @@ export default async function FichePersonnePage({
         orderBy: { date: 'desc' },
         select:  {
           id: true, date: true, orienteParFT: true, commentaire: true, fse: true,
-          demarches: { select: { atelierParticipation: true, autresInput: true } },
+          demarches: true,
           ateliers:  { where: { deletedAt: null }, select: { actionCollective: { select: { themeRef: { select: { nom: true } }, themeAutre: true } } } },
         },
       },
@@ -351,6 +351,7 @@ export default async function FichePersonnePage({
         <SectionDemarches
           accompagnementId={accompEIId}
           demarches={accompEI.demarches}
+          readOnly={!isTS}
         />
       </aside>
       </div>{/* fin flex */}
