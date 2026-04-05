@@ -16,6 +16,7 @@ import {
   HEBERGEMENT_OPTIONS,
 } from '@/schemas/person'
 import { formaterDateISO, capitaliserPrenom } from '@/lib/dates'
+import { formaterNumeroSecu } from '@/lib/format'
 
 type Mode = 'creation' | 'edition'
 
@@ -64,6 +65,7 @@ export function FormulairePersonne({ mode, personne }: Props) {
 
   // ── Identité ───────────────────────────────────────────────
   const [nom,           setNom]           = useState((personne?.nom    ?? '').toUpperCase())
+  const [nomNaissance,  setNomNaissance]  = useState(personne?.nomNaissance ?? '')
   const [prenom,        setPrenom]        = useState(capitaliserPrenom(personne?.prenom ?? ''))
   const [genre,         setGenre]         = useState<Genre | ''>(personne?.genre ?? '')
   const [dateNaissance, setDateNaissance] = useState(toInputDate(personne?.dateNaissance))
@@ -146,6 +148,7 @@ export function FormulairePersonne({ mode, personne }: Props) {
     try {
       const body = {
         nom:               nom.trim(),
+        nomNaissance:      nomNaissance.trim() || vide,
         prenom:            prenom.trim(),
         genre,
         dateNaissance:     dateNaissance     || undefined,
@@ -242,6 +245,11 @@ export function FormulairePersonne({ mode, personne }: Props) {
               </SelectContent>
             </Select>
           </Champ>
+          {genre === 'FEMME' && (
+            <Champ label="Nom de naissance">
+              <Input value={nomNaissance} onChange={(e) => setNomNaissance(e.target.value.toUpperCase())} maxLength={100} placeholder="Nom de naissance…" />
+            </Champ>
+          )}
           <Champ label="Date de naissance">
             <Input type="date" value={dateNaissance} onChange={(e) => setDateNaissance(e.target.value)} />
           </Champ>
@@ -262,7 +270,7 @@ export function FormulairePersonne({ mode, personne }: Props) {
           </Champ>
           <div className="grid grid-cols-2 gap-4">
             <Champ label="Téléphone">
-              <Input value={telephone} onChange={(e) => setTelephone(e.target.value)} maxLength={20} placeholder="0X XX XX XX XX" />
+              <Input value={telephone} onChange={(e) => setTelephone(e.target.value)} maxLength={20} placeholder="05 XX XX XX XX" />
             </Champ>
             <Champ label="Mobile">
               <Input value={mobile} onChange={(e) => setMobile(e.target.value)} maxLength={20} placeholder="06…" />
@@ -296,7 +304,7 @@ export function FormulairePersonne({ mode, personne }: Props) {
             )}
           </div>
           <Champ label="N° de sécurité sociale">
-            <Input value={numeroSecu} onChange={(e) => setNumeroSecu(e.target.value)} maxLength={50} placeholder="X XX XX XX XXX XXX XX" />
+            <Input value={numeroSecu} onChange={(e) => setNumeroSecu(formaterNumeroSecu(e.target.value) ?? '')} maxLength={21} placeholder="1 85 05 78 006 084 36" />
           </Champ>
         </div>
       </section>

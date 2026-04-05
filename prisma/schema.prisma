@@ -119,6 +119,7 @@ model User {
 model Person {
   id                Int       @id @default(autoincrement())
   nom               String
+  nomNaissance      String?   // Nom de naissance (femmes mariées)
   prenom            String
   genre             Genre
   dateNaissance     DateTime?
@@ -385,6 +386,8 @@ model Accompagnement {
 
   dateEntree DateTime  @db.Date
   dateSortie DateTime? @db.Date
+  dateRenouvellementFSE  DateTime? @db.Date
+  dateRenouvellementFSE2 DateTime? @db.Date
 
   // Ressources à l'entrée dans le FSE
   ressourceRSA            Boolean @default(false)

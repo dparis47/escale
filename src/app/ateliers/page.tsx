@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Download } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { peutAcceder } from '@/lib/permissions'
+import { OngletsAnnee } from '@/components/ui/onglets-annee'
 import { BoutonExportAteliers } from '@/components/ateliers/bouton-export-ateliers'
 import { TableauAteliers } from '@/components/ateliers/tableau-ateliers'
 import { SectionPlanningMensuel } from '@/components/ateliers/section-planning-mensuel'
@@ -32,7 +33,7 @@ type GroupeAtelier = {
 export default async function AteliersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; themeId?: string; participant?: string }>
+  searchParams: Promise<{ q?: string; themeId?: string; participant?: string; annee?: string }>
 }) {
   const session = await auth()
   if (!session) redirect('/login')
@@ -44,12 +45,30 @@ export default async function AteliersPage({
   const participant = params.participant?.trim() ?? ''
   const themeIdFilter = themeIdStr ? Number(themeIdStr) : null
 
+  // Années disponibles
+  const anneeCouranteNum = new Date().getFullYear()
+  const anneesDistinctes = await prisma.$queryRaw<{ annee: number }[]>`
+    SELECT DISTINCT EXTRACT(YEAR FROM date)::int AS annee
+    FROM "ActionCollective"
+    WHERE "deletedAt" IS NULL
+    ORDER BY annee
+  `
+  const annees = anneesDistinctes.map((r) => r.annee)
+  if (!annees.includes(anneeCouranteNum)) annees.push(anneeCouranteNum)
+  annees.sort()
+  const annee = params.annee ? parseInt(params.annee) : anneeCouranteNum
+  const debutAnnee = new Date(`${annee}-01-01T00:00:00.000Z`)
+  const finAnnee   = new Date(`${annee + 1}-01-01T00:00:00.000Z`)
+
   const peutModifier = peutAcceder(session, 'ateliers', 'creer_modifier')
   const estTS        = peutModifier
   const peutGerer    = peutModifier
 
   // Construire le filtre Prisma (AND de tous les critères actifs)
-  const conditions: Prisma.ActionCollectiveWhereInput[] = [{ deletedAt: null }]
+  const conditions: Prisma.ActionCollectiveWhereInput[] = [
+    { deletedAt: null },
+    { date: { gte: debutAnnee, lt: finAnnee } },
+  ]
 
   if (q.length >= 2) {
     conditions.push({
@@ -91,12 +110,11 @@ export default async function AteliersPage({
   const moisCourant   = maintenant.getMonth() + 1
   const anneeCourante = maintenant.getFullYear()
 
-  // Charger les plannings mensuels (sans le contenu binaire)
+  // Charger les plannings mensuels de l'année sélectionnée (sans le contenu binaire)
   const planningsRaw = await prisma.planningMensuel.findMany({
-    where:   { deletedAt: null },
+    where:   { deletedAt: null, annee },
     select:  { id: true, mois: true, annee: true, nom: true, createdAt: true },
     orderBy: [{ annee: 'desc' }, { mois: 'desc' }],
-    take:    12,
   })
   const plannings: PlanningData[] = planningsRaw.map((p) => ({
     ...p,
@@ -215,6 +233,11 @@ export default async function AteliersPage({
         anneeCourante={anneeCourante}
       />
 
+      {/* Onglets année */}
+      <div className="mb-4">
+        <OngletsAnnee annees={annees} anneeActive={annee} baseUrl="/ateliers" />
+      </div>
+
       {/* En-tête */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -247,6 +270,7 @@ export default async function AteliersPage({
 
       {/* Filtres */}
       <form method="GET" className="mb-6 space-y-2">
+        <input type="hidden" name="annee" value={annee} />
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[200px] max-w-xs">
             <label htmlFor="q" className="mb-1 block text-xs font-medium text-muted-foreground">Recherche libre</label>
@@ -277,7 +301,7 @@ export default async function AteliersPage({
           <div className="flex gap-2">
             <Button type="submit" variant="outline">Filtrer</Button>
             {hasFilters && (
-              <Link href="/ateliers">
+              <Link href={`/ateliers?annee=${annee}`}>
                 <Button type="button" variant="ghost">Réinitialiser</Button>
               </Link>
             )}

@@ -115,6 +115,78 @@ export async function POST(request: Request) {
     resolvedPersonId = nouvellePers.id
   }
 
+  // Cas ASID seul (sans nouveau FSE+) : rattacher au FSE+ existant
+  if (suiviASIDData && !dateEntree) {
+    const fseExistant = await prisma.accompagnement.findFirst({
+      where: {
+        personId:  resolvedPersonId,
+        deletedAt: null,
+        suiviASID: null,
+        suiviEI:   null,
+      },
+      orderBy: { dateEntree: 'desc' },
+    })
+    if (!fseExistant) {
+      return NextResponse.json(
+        { erreur: 'Aucun accompagnement FSE+ existant pour cette personne. Cochez "Nouvel accompagnement FSE+" pour en créer un.' },
+        { status: 422 },
+      )
+    }
+
+    const {
+      prescripteurNom, prescripteurPrenom,
+      referentNom, referentPrenom, communeResidence,
+      dateEntree: asidDateEntree,
+      dateRenouvellement, dateRenouvellement2, dateSortie: asidDateSortie,
+      orientationNMoins1, orientationN, renouvellementN, suiviNMoins2EnCours,
+      suiviRealise, suiviNonRealiseRaison,
+      reorientation, reorientationDescription,
+      observation: asidObservation,
+    } = suiviASIDData
+
+    await prisma.suiviASID.create({
+      data: {
+        accompagnementId:    fseExistant.id,
+        prescripteurNom:     prescripteurNom    ?? null,
+        prescripteurPrenom:  prescripteurPrenom ?? null,
+        referentNom:         referentNom        ?? null,
+        referentPrenom:      referentPrenom     ?? null,
+        communeResidence:    communeResidence   ?? null,
+        dateEntree:          parseISO(asidDateEntree),
+        dateRenouvellement:  dateRenouvellement  ? parseISO(dateRenouvellement)  : null,
+        dateRenouvellement2: dateRenouvellement2 ? parseISO(dateRenouvellement2) : null,
+        dateSortie:          asidDateSortie      ? parseISO(asidDateSortie)      : null,
+        orientationNMoins1:  orientationNMoins1  ?? false,
+        orientationN:        orientationN        ?? false,
+        renouvellementN:     renouvellementN     ?? 0,
+        suiviNMoins2EnCours: suiviNMoins2EnCours ?? false,
+        suiviRealise:        suiviRealise        ?? true,
+        suiviNonRealiseRaison:    suiviNonRealiseRaison    ?? null,
+        reorientation:            reorientation            ?? false,
+        reorientationDescription: reorientationDescription ?? null,
+        observation:              asidObservation          ?? null,
+      },
+    })
+
+    logAudit({
+      userId:     Number(session.user.id),
+      action:     'creer',
+      entite:     'accompagnement',
+      entiteId:   fseExistant.id,
+      details:    `ASID rattaché au FSE+ #${fseExistant.id}`,
+    })
+
+    return NextResponse.json({ id: fseExistant.id }, { status: 201 })
+  }
+
+  // Validation : dateEntree obligatoire pour créer un nouveau FSE+
+  if (!dateEntree) {
+    return NextResponse.json(
+      { erreur: "La date d'entrée FSE+ est obligatoire pour créer un nouvel accompagnement." },
+      { status: 422 },
+    )
+  }
+
   // Transaction : Accompagnement + optionnellement SuiviASID + Demarches
   const accompagnement = await prisma.$transaction(async (tx) => {
     const created = await tx.accompagnement.create({

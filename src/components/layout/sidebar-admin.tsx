@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ScrollText, Users, Archive,
   Handshake, CalendarDays, FolderOpen, Briefcase,
-  BookOpen, BarChart3,
+  BookOpen, BarChart3, Upload,
 } from 'lucide-react'
 import { peutAcceder, type Permissions } from '@/lib/permissions'
 
@@ -32,6 +32,8 @@ export function SidebarAdmin({ permissions }: Props) {
     { href: '/accompagnement', label: 'Accompagnements', icone: Briefcase, exact: false, visible: peutAcceder(s, 'accompagnements') },
     { href: '/ateliers', label: 'Actions collectives', icone: BookOpen, exact: false, visible: peutAcceder(s, 'ateliers') },
     { href: '/bilans', label: 'Bilans', icone: BarChart3, exact: false, visible: peutAcceder(s, 'bilans') },
+    { separator: true },
+    { href: '/import', label: 'Import', icone: Upload, exact: false, visible: true },
   ]
 
   function estActif(href: string, exact: boolean) {

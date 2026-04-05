@@ -17,6 +17,7 @@ const schemaEmail = z
 export const schemaCreerPersonne = z.object({
   // Identité
   nom:               z.string().min(1, 'Nom requis').max(100),
+  nomNaissance:      z.string().max(100).optional(),
   prenom:            z.string().min(1, 'Prénom requis').max(100),
   genre:             z.enum(['HOMME', 'FEMME'], { message: 'Genre requis' }),
   dateNaissance:     schemaDate.optional(),
@@ -74,6 +75,7 @@ export const schemaMajPersonne = schemaCreerPersonne.partial().extend({
   numeroFT:               z.string().max(50).nullable().optional(),
   codepersonnelFT:        z.string().max(50).nullable().optional(),
   numeroCAF:              z.string().max(50).nullable().optional(),
+  nomNaissance:           z.string().max(100).nullable().optional(),
   autresMoyensLocomotion: z.string().max(200).nullable().optional(),
   hebergement:            z.string().max(200).nullable().optional(),
 })

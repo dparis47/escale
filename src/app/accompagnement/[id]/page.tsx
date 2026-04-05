@@ -249,6 +249,8 @@ export default async function FicheAccompagnementPage({
                 accompagnementId={id}
                 dateEntree={accompagnement.dateEntree}
                 dateSortie={accompagnement.dateSortie}
+                dateRenouvellementFSE={accompagnement.dateRenouvellementFSE}
+                dateRenouvellementFSE2={accompagnement.dateRenouvellementFSE2}
                 observation={accompagnement.observation}
               />
             ) : (
@@ -263,6 +265,18 @@ export default async function FicheAccompagnementPage({
                     <span className="w-52 shrink-0 text-muted-foreground">Date de sortie</span>
                     <span>{accompagnement.dateSortie ? formaterDateCourte(accompagnement.dateSortie) : '—'}</span>
                   </div>
+                  {accompagnement.dateRenouvellementFSE && (
+                    <div className="flex gap-2 py-0.5">
+                      <span className="w-52 shrink-0 text-muted-foreground">1er renouvellement FSE</span>
+                      <span>{formaterDateCourte(accompagnement.dateRenouvellementFSE)}</span>
+                    </div>
+                  )}
+                  {accompagnement.dateRenouvellementFSE2 && (
+                    <div className="flex gap-2 py-0.5">
+                      <span className="w-52 shrink-0 text-muted-foreground">2ème renouvellement FSE</span>
+                      <span>{formaterDateCourte(accompagnement.dateRenouvellementFSE2)}</span>
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -11,8 +11,13 @@ const IMPORTS = [
   },
   {
     href:        '/import/personnes',
-    titre:       'Dossiers individuels',
+    titre:       'Dossiers individuels (Excel)',
     description: 'Importer des fiches personnes depuis un fichier Excel.',
+  },
+  {
+    href:        '/import/personnes-word',
+    titre:       'Dossiers individuels (fiches Word)',
+    description: 'Importer des fiches personnes depuis les fichiers Word .docx existants.',
   },
   {
     href:        '/import/accompagnements',

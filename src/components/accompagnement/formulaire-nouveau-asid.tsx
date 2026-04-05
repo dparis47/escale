@@ -27,6 +27,7 @@ export function FormulaireNouveauASID({ personneInitiale }: Props = {}) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // FSE
+  const [nouveauFSE, setNouveauFSE] = useState(false)
   const [dateFSEEntree, setDateFSEEntree] = useState('')
 
   // ASID
@@ -60,7 +61,7 @@ export function FormulaireNouveauASID({ personneInitiale }: Props = {}) {
       setErreur('Veuillez sélectionner une personne.')
       return
     }
-    if (!dateFSEEntree) {
+    if (nouveauFSE && !dateFSEEntree) {
       setErreur("La date d'entrée FSE est obligatoire.")
       return
     }
@@ -76,7 +77,7 @@ export function FormulaireNouveauASID({ personneInitiale }: Props = {}) {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           personId:   personneSelectionnee.id,
-          dateEntree: dateFSEEntree,
+          ...(nouveauFSE ? { dateEntree: dateFSEEntree } : {}),
           suiviASID: {
             dateEntree:         dateASIDEntree,
             prescripteurNom:    prescripteurNom    || undefined,
@@ -148,14 +149,28 @@ export function FormulaireNouveauASID({ personneInitiale }: Props = {}) {
         )}
       </div>
 
-      {/* FSE */}
-      <fieldset className="rounded border p-4 space-y-4">
-        <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">FSE+</legend>
-        <div className="space-y-1.5">
-          <Label className="text-sm">{"Date d'entrée FSE *"}</Label>
-          <Input type="date" value={dateFSEEntree} onChange={(e) => setDateFSEEntree(e.target.value)} className="max-w-xs" />
-        </div>
-      </fieldset>
+      {/* Checkbox nouvel FSE+ */}
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="nouveauFSE"
+          checked={nouveauFSE}
+          onChange={(e) => { setNouveauFSE(e.target.checked); if (!e.target.checked) setDateFSEEntree('') }}
+          className="h-4 w-4 rounded border-gray-300"
+        />
+        <Label htmlFor="nouveauFSE" className="text-sm cursor-pointer">Nouvel accompagnement FSE+</Label>
+      </div>
+
+      {/* FSE (visible seulement si nouveau FSE+ coché) */}
+      {nouveauFSE && (
+        <fieldset className="rounded border p-4 space-y-4">
+          <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">FSE+</legend>
+          <div className="space-y-1.5">
+            <Label className="text-sm">{"Date d'entrée FSE *"}</Label>
+            <Input type="date" value={dateFSEEntree} onChange={(e) => setDateFSEEntree(e.target.value)} className="max-w-xs" />
+          </div>
+        </fieldset>
+      )}
 
       {/* ASID */}
       <fieldset className="rounded border p-4 space-y-4">

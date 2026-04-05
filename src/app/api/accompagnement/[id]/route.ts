@@ -85,7 +85,7 @@ export async function PATCH(
   }
 
   const {
-    dateEntree, dateSortie,
+    dateEntree, dateSortie, dateRenouvellementFSE, dateRenouvellementFSE2,
     ressourceRSA, ressourceASS, ressourceARE, ressourceAAH,
     ressourceASI, ressourceSansRessources,
     avantOccupeEmploi, avantCDI, avantCDDPlus6Mois, avantCDDMoins6Mois,
@@ -102,6 +102,8 @@ export async function PATCH(
       modifieParId: Number(session.user.id),
       ...(dateEntree             !== undefined ? { dateEntree: parseISO(dateEntree) }        : {}),
       ...(dateSortie             !== undefined ? { dateSortie: dateSortie ? parseISO(dateSortie) : null } : {}),
+      ...(dateRenouvellementFSE  !== undefined ? { dateRenouvellementFSE:  dateRenouvellementFSE  ? parseISO(dateRenouvellementFSE)  : null } : {}),
+      ...(dateRenouvellementFSE2 !== undefined ? { dateRenouvellementFSE2: dateRenouvellementFSE2 ? parseISO(dateRenouvellementFSE2) : null } : {}),
       ...(observation            !== undefined ? { observation }                             : {}),
       ...(ressourceRSA           !== undefined ? { ressourceRSA }                           : {}),
       ...(ressourceASS           !== undefined ? { ressourceASS }                           : {}),

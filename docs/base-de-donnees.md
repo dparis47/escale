@@ -47,6 +47,7 @@ Sert de dossier individuel si le formulaire de la personne est complet (`estInsc
 |---|---|---|
 | `id` | Int (PK) | Identifiant unique |
 | `nom` | String | Nom de famille |
+| `nomNaissance` | String? | Nom de naissance (femmes mariées) |
 | `prenom` | String | Prénom |
 | `genre` | Genre | Homme ou Femme |
 | `dateNaissance` | DateTime? | Date de naissance |
@@ -239,6 +240,8 @@ Coquille commune pour tous les accompagnements. Porte les données partagées : 
 | `personId` | Int | Lien vers la fiche Person |
 | `dateEntree` | DateTime (Date) | Date d'entrée dans l'accompagnement |
 | `dateSortie` | DateTime? (Date) | Date de sortie de l'accompagnement |
+| `dateRenouvellementFSE` | DateTime? (Date) | Date du 1er renouvellement FSE+ |
+| `dateRenouvellementFSE2` | DateTime? (Date) | Date du 2ème renouvellement FSE+ |
 | `ressourceRSA` | Boolean | Bénéficiait du RSA à l'entrée |
 | `ressourceASS` | Boolean | Bénéficiait de l'ASS à l'entrée |
 | `ressourceARE` | Boolean | Bénéficiait de l'ARE à l'entrée |

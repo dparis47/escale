@@ -12,6 +12,8 @@ interface Props {
   accompagnementId: number
   dateEntree:       Date | null
   dateSortie:       Date | null
+  dateRenouvellementFSE:  Date | null
+  dateRenouvellementFSE2: Date | null
   observation:      string | null
 }
 
@@ -24,6 +26,8 @@ export function SectionSuiviFSE({
   accompagnementId,
   dateEntree,
   dateSortie,
+  dateRenouvellementFSE,
+  dateRenouvellementFSE2,
   observation,
 }: Props) {
   const router      = useRouter()
@@ -32,6 +36,8 @@ export function SectionSuiviFSE({
 
   const [dateEntreeVal,  setDateEntreeVal]  = useState(toInputDate(dateEntree))
   const [dateSortieVal,  setDateSortieVal]  = useState(toInputDate(dateSortie))
+  const [renouv1Val,     setRenouv1Val]     = useState(toInputDate(dateRenouvellementFSE))
+  const [renouv2Val,     setRenouv2Val]     = useState(toInputDate(dateRenouvellementFSE2))
   const [observationVal, setObservationVal] = useState(observation ?? '')
   const [erreur, setErreur] = useState('')
 
@@ -44,6 +50,8 @@ export function SectionSuiviFSE({
         body:    JSON.stringify({
           dateEntree:  dateEntreeVal || undefined,
           dateSortie:  dateSortieVal || null,
+          dateRenouvellementFSE:  renouv1Val || null,
+          dateRenouvellementFSE2: renouv2Val || null,
           observation: observationVal || null,
         }),
       })
@@ -92,6 +100,28 @@ export function SectionSuiviFSE({
                 onChange={(e) => setDateSortieVal(e.target.value)}
                 className="h-8 text-sm"
                 disabled={!modeEdition}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">1er renouvellement FSE</Label>
+              <Input
+                type="date"
+                value={renouv1Val}
+                onChange={(e) => setRenouv1Val(e.target.value)}
+                className="h-8 text-sm"
+                disabled={!modeEdition}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">2ème renouvellement FSE</Label>
+              <Input
+                type="date"
+                value={renouv2Val}
+                onChange={(e) => setRenouv2Val(e.target.value)}
+                className="h-8 text-sm"
+                disabled={!modeEdition || !renouv1Val}
               />
             </div>
           </div>

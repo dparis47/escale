@@ -72,8 +72,10 @@ export const schemaCreerAccompagnement = z.object({
   personneGenre:         z.enum(['HOMME', 'FEMME']).optional(),
   personneDateNaissance: z.string().regex(dateRegex).optional(),
 
-  dateEntree: z.string().regex(dateRegex, 'Format YYYY-MM-DD attendu'),
+  dateEntree: z.string().regex(dateRegex, 'Format YYYY-MM-DD attendu').optional(),
   dateSortie: z.string().regex(dateRegex).optional(),
+  dateRenouvellementFSE:  z.string().regex(dateRegex).optional(),
+  dateRenouvellementFSE2: z.string().regex(dateRegex).optional(),
 
   // Ressources à l'entrée FSE
   ressourceRSA:            z.boolean().default(false),
@@ -124,7 +126,9 @@ export const schemaMajAccompagnement = schemaCreerAccompagnement
   })
   .partial()
   .extend({
-    dateSortie:   z.string().regex(dateRegex).nullable().optional(),
+    dateSortie:             z.string().regex(dateRegex).nullable().optional(),
+    dateRenouvellementFSE:  z.string().regex(dateRegex).nullable().optional(),
+    dateRenouvellementFSE2: z.string().regex(dateRegex).nullable().optional(),
     observation:  z.string().nullable().optional(),
     estBrouillon: z.boolean().optional(),
   })

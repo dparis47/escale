@@ -9,15 +9,17 @@ interface Props {
   placeholder?: string
   defaultValue?: string
   baseUrl:       string
+  /** Params supplémentaires à conserver dans l'URL (ex: { annee: '2025' }) */
+  extraParams?:  Record<string, string>
 }
 
-export function BarreRechercheAuto({ placeholder, defaultValue = '', baseUrl }: Props) {
+export function BarreRechercheAuto({ placeholder, defaultValue = '', baseUrl, extraParams = {} }: Props) {
   const router = useRouter()
   const [valeur, setValeur] = useState(defaultValue)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function naviguer(q: string) {
-    const qs = new URLSearchParams()
+    const qs = new URLSearchParams(extraParams)
     if (q) qs.set('q', q)
     const str = qs.toString()
     router.replace(`${baseUrl}${str ? `?${str}` : ''}`)

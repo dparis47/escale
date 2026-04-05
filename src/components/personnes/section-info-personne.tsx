@@ -27,6 +27,7 @@ import { useModeEdition, useRegistrerSauvegarde } from '@/contexts/sauvegarde-ac
 interface PersonneInfo {
   id: number
   nom: string
+  nomNaissance: string | null
   prenom: string
   genre: Genre
   dateNaissance: Date | null
@@ -117,6 +118,7 @@ export function SectionInfoPersonne({ personne }: Props) {
 
   // ── State pour l'édition ──────────────────────────────────────
   const [nom,           setNom]           = useState(personne.nom.toUpperCase())
+  const [nomNaissance,  setNomNaissance]  = useState(personne.nomNaissance ?? '')
   const [prenom,        setPrenom]        = useState(capitaliserPrenom(personne.prenom))
   const [genre,         setGenre]         = useState<Genre | ''>(personne.genre)
   const [dateNaissance, setDateNaissance] = useState(toInputDate(personne.dateNaissance))
@@ -158,6 +160,7 @@ export function SectionInfoPersonne({ personne }: Props) {
   useEffect(() => {
     if (!modeEdition) {
       setNom(personne.nom.toUpperCase())
+      setNomNaissance(personne.nomNaissance ?? '')
       setPrenom(capitaliserPrenom(personne.prenom))
       setGenre(personne.genre)
       setDateNaissance(toInputDate(personne.dateNaissance))
@@ -218,6 +221,7 @@ export function SectionInfoPersonne({ personne }: Props) {
 
     const body = {
       nom:               nom.trim(),
+      nomNaissance:      nomNaissance.trim() || null,
       prenom:            prenom.trim(),
       genre,
       dateNaissance:     dateNaissance     || undefined,
@@ -272,6 +276,9 @@ export function SectionInfoPersonne({ personne }: Props) {
         {/* Identité */}
         <SectionTitre>Identité</SectionTitre>
         <Ligne label="Nom"               valeur={personne.nom.toUpperCase()} />
+        {personne.genre === 'FEMME' && personne.nomNaissance && (
+          <Ligne label="Nom de naissance" valeur={personne.nomNaissance} />
+        )}
         <Ligne label="Prénom"            valeur={capitaliserPrenom(personne.prenom)} />
         <Ligne label="Genre"             valeur={personne.genre === 'HOMME' ? 'Homme' : 'Femme'} />
         <Ligne label="Date de naissance" valeur={personne.dateNaissance ? formaterDateCourte(personne.dateNaissance) : null} />
@@ -347,6 +354,11 @@ export function SectionInfoPersonne({ personne }: Props) {
           <Champ label="Nom" required>
             <Input value={nom} onChange={(e) => setNom(e.target.value.toUpperCase())} maxLength={100} placeholder="Nom de famille…" />
           </Champ>
+          {genre === 'FEMME' && (
+            <Champ label="Nom de naissance">
+              <Input value={nomNaissance} onChange={(e) => setNomNaissance(e.target.value.toUpperCase())} maxLength={100} placeholder="Nom de naissance…" />
+            </Champ>
+          )}
           <Champ label="Prénom" required>
             <Input value={prenom} onChange={(e) => setPrenom(capitaliserPrenom(e.target.value))} maxLength={100} placeholder="Prénom…" />
           </Champ>
@@ -379,10 +391,10 @@ export function SectionInfoPersonne({ personne }: Props) {
           </Champ>
           <div className="grid grid-cols-2 gap-4">
             <Champ label="Mobile">
-              <Input value={mobile} onChange={(e) => setMobile(formaterTelephone(e.target.value) ?? '')} maxLength={14} placeholder="06 12 34 56 78" />
+              <Input value={mobile} onChange={(e) => setMobile(formaterTelephone(e.target.value) ?? '')} maxLength={14} placeholder="06…" />
             </Champ>
             <Champ label="Téléphone">
-              <Input value={telephone} onChange={(e) => setTelephone(formaterTelephone(e.target.value) ?? '')} maxLength={14} placeholder="05 12 34 56 78" />
+              <Input value={telephone} onChange={(e) => setTelephone(formaterTelephone(e.target.value) ?? '')} maxLength={14} placeholder="05…" />
             </Champ>
           </div>
           <Champ label="Email">

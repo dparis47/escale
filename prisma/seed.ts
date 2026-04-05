@@ -405,11 +405,12 @@ async function main() {
   await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteActivite.id, nom: 'Sport en salle' } }, update: {}, create: { nom: 'Sport en salle', categorieId: catSanteActivite.id, ordre: 2 } })
   await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteActivite.id, nom: 'Piscine' } },        update: {}, create: { nom: 'Piscine',        categorieId: catSanteActivite.id, ordre: 3 } })
 
-  await prisma.categorieAtelier.upsert({
+  const catSanteEnv = await prisma.categorieAtelier.upsert({
     where: { nom: 'Santé environnement' },
     update: {},
     create: { nom: 'Santé environnement', couleur: 'sky', ordre: 8 },
   })
+  await prisma.themeAtelierRef.upsert({ where: { categorieId_nom: { categorieId: catSanteEnv.id, nom: 'Santé environnement' } }, update: {}, create: { nom: 'Santé environnement', categorieId: catSanteEnv.id, ordre: 1 } })
 
   await prisma.prestataire.upsert({
     where: { nom: 'Association Cuisine Solidaire' },
